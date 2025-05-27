@@ -96,6 +96,10 @@ await notificationSystem.send(
 
 To add a new notification channel, create a new file in the `notifications` directory with a `send` method, and update the `notifications/index.js` file to export it.
 
+## Environment Configuration
+
+This notification system uses environment variables for configuration. Create a `.env` file in the project root:
+
 ## License
 
 MIT
