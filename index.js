@@ -1,31 +1,46 @@
 /**
- * Notification System - Main Entry Point
- *
- * This file serves as the main entry point for the notification system.
- * It imports and exports all notification channels from the notifications module.
+ * Main entry point for the notification system
  */
 
-const notifications = require("./notifications");
+// Import required modules
+const path = require('path');
+const fs = require('fs');
 
-// Example function to demonstrate usage
-function sendNotification(type, recipient, message, options = {}) {
-  if (!notifications[type]) {
-    throw new Error(`Notification type '${type}' is not supported`);
+// Import notification modules
+const notificationSystem = require('./notifications');
+
+// Initialize the notification system
+console.log('Initializing notification system...');
+
+// Example function to demonstrate sending an email
+async function sendExampleEmail() {
+  try {
+    const result = await notificationSystem.send(
+      notificationSystem.types.EMAIL,
+      'user@example.com',
+      'This is the email body content.',
+      {
+        subject: 'Test Notification',
+        isHtml: false,
+        additionalOptions: {
+          // Any additional options for the email
+        }
+      }
+    );
+    
+    console.log('Email sent successfully:', result);
+  } catch (error) {
+    console.error('Failed to send example email:', error);
   }
-
-  return notifications[type].send(recipient, message, options);
 }
 
-// Export all notification methods
-module.exports = {
-  ...notifications,
-  sendNotification,
-};
+// Export notification functionality for use in other modules
+module.exports = notificationSystem;
 
-// Example usage (if this file is run directly)
+// If this file is run directly, start the notification service
 if (require.main === module) {
-  console.log("Notification System initialized");
-  console.log("Available notification types:", Object.keys(notifications));
-
-  // You could add example calls here for testing purposes
+  console.log('Starting notification service...');
+  
+  // Send an example email
+  sendExampleEmail();
 }

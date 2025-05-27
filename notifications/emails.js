@@ -4,28 +4,65 @@
  * This module provides functionality for sending email notifications.
  */
 
+// Mock Nodemailer transport (in a real app, you would use actual Nodemailer)
+const mockTransporter = {
+  sendMail: (mailOptions) => {
+    return new Promise((resolve) => {
+      console.log('\n--- EMAIL SENT SUCCESSFULLY ---');
+      console.log(`From: ${mailOptions.from}`);
+      console.log(`To: ${mailOptions.to}`);
+      console.log(`Subject: ${mailOptions.subject}`);
+      console.log(`Body: ${mailOptions.html || mailOptions.text}`);
+      console.log('-------------------------------\n');
+      
+      // Simulate async sending
+      setTimeout(() => {
+        resolve({ 
+          messageId: `mock-${Date.now()}@mockmail.com`,
+          success: true 
+        });
+      }, 100);
+    });
+  }
+};
+
+// Email configuration
+const emailConfig = {
+  defaultFrom: 'notification-system@example.com',
+};
+
+
+
 /**
  * Send an email notification
- * @param {string} recipient - Email address of the recipient
- * @param {string} message - The message to be sent
- * @param {Object} options - Additional options for the email
- * @returns {Promise<Object>} - Promise resolving to the result of the operation
+ * @param {string} to - Recipient email address
+ * @param {string} subject - Email subject line
+ * @param {string} body - Email body content
+ * @param {Object} options - Additional email options
+ * @returns {Promise} - Resolves with send result
  */
-function send(recipient, message, options = {}) {
-  // In a real implementation, this would use an email service/library
-  console.log(`[EMAIL] To: ${recipient} | Message: ${message}`);
-  console.log(`[EMAIL] Options:`, options);
+async function sendEmail(to, subject, body, options = {}) {
+  if (!to || !subject || !body) {
+    throw new Error('Email requires recipient, subject, and body');
+  }
 
-  // Return a promise to simulate async operation
-  return Promise.resolve({
-    type: "email",
-    recipient,
-    message,
-    timestamp: new Date(),
-    status: "sent",
-  });
+  const mailOptions = {
+    from: options.from || emailConfig.defaultFrom,
+    to: to,
+    subject: subject,
+    text: options.isHtml ? undefined : body,
+    html: options.isHtml ? body : undefined,
+    ...options.additionalOptions
+  };
+
+  try {
+    return await mockTransporter.sendMail(mailOptions);
+  } catch (error) {
+    console.error('Failed to send email:', error);
+    throw error;
+  }
 }
 
 module.exports = {
-  send,
+  send: sendEmail
 };
