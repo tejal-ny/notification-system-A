@@ -1,0 +1,19 @@
+{
+  "name": "notification-system",
+  "version": "1.0.0",
+  "description": "A modular notification system supporting multiple channels",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "notifications",
+    "email",
+    "sms",
+    "push"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {}
+}
