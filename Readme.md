@@ -55,21 +55,180 @@ A flexible notification system for Node.js applications that supports multiple n
 
 ## Project Structure
 - `index.js`: Main entry point for the application
+- `config.js`: Configuration management using environment variables
 - `notifications/`: Directory containing notification functionality
-  - `index.js`: Main notification system implementation
-  - `email.js`: Email notification module
+  - `index.js`: Core notification system
+  - `email.js`: Email notification provider
+  - `sms.js`: SMS notification provider using Twilio
+  - `validators.js`: Input validation utilities
+- `examples/`: Example usage for different notification types
 - `package.json`: Project configuration and dependencies
+- `.env.example`: Example environment variable configuration
 
 ## Getting Started
 1. Clone this repository
 2. Run `npm install` to install dependencies
-3. Run `node index.js` to start the application and see an example email notification
+3. Create a `.env` file based on `.env.example` with your credentials
+4. Run `npm start` to start the application
+5. For development without sending real notifications, use `npm run dev`
+
+## Environment Variables
+
+The application uses the following environment variables:
+
+## Email Configuration
+|
+ Variable 
+|
+ Description 
+|
+ Default 
+|
+|
+----------
+|
+-------------
+|
+---------
+|
+|
+ EMAIL_MODE 
+|
+ Email mode (mock/live) 
+|
+ - 
+|
+|
+ EMAIL_HOST 
+|
+ SMTP server hostname 
+|
+ - 
+|
+|
+ EMAIL_PORT 
+|
+ SMTP server port 
+|
+ 587 
+|
+|
+ EMAIL_SECURE 
+|
+ Use secure connection (true/false) 
+|
+ false 
+|
+|
+ EMAIL_USER 
+|
+ SMTP username/email 
+|
+ - 
+|
+|
+ EMAIL_PASSWORD 
+|
+ SMTP password 
+|
+ - 
+|
+|
+ EMAIL_FROM 
+|
+ Default sender email address 
+|
+ notification-system@example.com 
+|
+
+### SMS Configuration
+|
+ Variable 
+|
+ Description 
+|
+ Default 
+|
+|
+----------
+|
+-------------
+|
+---------
+|
+|
+ SMS_PROVIDER 
+|
+ SMS provider to use (twilio/mock) 
+|
+ mock 
+|
+|
+ SMS_MODE 
+|
+ SMS mode (mock/live) 
+|
+ - 
+|
+|
+ TWILIO_ACCOUNT_SID 
+|
+ Twilio Account SID 
+|
+ - 
+|
+|
+ TWILIO_AUTH_TOKEN 
+|
+ Twilio Auth Token 
+|
+ - 
+|
+|
+ TWILIO_PHONE_NUMBER 
+|
+ Default sender phone number 
+|
+ - 
+|
+
+### General
+|
+ Variable 
+|
+ Description 
+|
+ Default 
+|
+|
+----------
+|
+-------------
+|
+---------
+|
+|
+ NODE_ENV 
+|
+ Environment mode (development/production) 
+|
+ development 
+|
+
+In development mode or when EMAIL_MODE=mock or SMS_MODE=mock, the system will use mock implementations that only log messages to the console.
+
 
 ## Features
 - Centralized notification management
-- Support for multiple notification types (email, SMS, push, webhooks)
+- Support for multiple notification types:
+  - Email (via SMTP/Nodemailer)
+  - SMS (via Twilio)
+  - Push notifications (coming soon)
+  - Webhooks (coming soon)
+- Secure credential management with environment variables
+- Development mode with mock notifications
+- Input validation for email addresses and phone numbers
 - Easily extensible notification system
-- Mock email sending functionality (can be replaced with actual Nodemailer)
 
 ## Usage Examples
 

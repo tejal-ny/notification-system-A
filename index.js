@@ -6,9 +6,8 @@
 const path = require('path');
 const fs = require('fs');
 const config = require('./config');
-
-// Import notification modules
 const notificationSystem = require('./notifications');
+
 
 // Initialize the notification system
 console.log(`Initializing notification system in ${process.env.NODE_ENV || 'development'} mode...`);
@@ -16,20 +15,58 @@ console.log(`Initializing notification system in ${process.env.NODE_ENV || 'deve
 // Export notification functionality for use in other modules
 module.exports = notificationSystem;
 
-// If this file is run directly, start the notification service
-if (require.main === module) {
-  console.log('Starting notification service...');
-
-  // Display configuration status
-  if (config.environment.isDevelopment) {
-    console.log('Running in development mode');
-
-    if (!config.email.host || !config.email.auth.user) {
-      console.log('Email configuration incomplete - using mock service');
-    } else {
-      console.log('Email configured with:', config.email.host);
+async function sendExampleNotifications() {
+  try {
+    // Email example
+    console.log('\n1. Sending an email notification:');
+    const emailResult = await notificationSystem.send(
+      notificationSystem.types.EMAIL,
+      'user@example.com',
+      'This is a test of the notification system.',
+      {
+        subject: 'Test Notification'
+      }
+    );
+    console.log('Email sent successfully:', emailResult);
+    
+    // SMS example
+    console.log('\n2. Sending an SMS notification:');
+    const smsResult = await notificationSystem.send(
+      notificationSystem.types.SMS,
+      '+12025551234', // Format: +[country code][area code][local number]
+      'Your verification code is: 123456'
+    );
+    console.log('SMS sent successfully:', smsResult);
+    
+    // Invalid phone number example
+    console.log('\n3. Attempting to send to invalid phone number:');
+    await notificationSystem.send(
+      notificationSystem.types.SMS,
+      '555-123-4567', // Invalid format (missing country code)
+      'This message should not be sent.'
+    );
+  } catch (error) {
+    console.error('Error caught:', error.message);
+    if (error.code) {
+      console.error('Error code:', error.code);
     }
   }
+}
+
+// If this file is run directly, start the notification service
+if (require.main === module) {
+  console.log('Starting notification service with examples...');
+  sendExampleNotifications()
+  // Display configuration status
+  // if (config.environment.isDevelopment) {
+  //   console.log('Running in development mode');
+
+  //   if (!config.email.host || !config.email.auth.user) {
+  //     console.log('Email configuration incomplete - using mock service');
+  //   } else {
+  //     console.log('Email configured with:', config.email.host);
+  //   }
+  // }
 
   // Example: Valid email
   notificationSystem.send(

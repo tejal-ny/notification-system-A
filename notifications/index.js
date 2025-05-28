@@ -4,6 +4,7 @@
 
 // Import notification modules
 const emailNotifier = require('./emails');
+const smsNotifier = require('./sms');
 
 // Define supported notification types
 const NOTIFICATION_TYPES = {
@@ -14,9 +15,10 @@ const NOTIFICATION_TYPES = {
 };
 
 // Store notification handlers
-const handlers = {
-  [NOTIFICATION_TYPES.EMAIL]: emailNotifier.send,
-  // Other handlers will be added here
+const notificationHandlers = {
+  [NOTIFICATION_TYPES.EMAIL]: emailNotifier.sendEmail,
+  [NOTIFICATION_TYPES.SMS]: smsNotifier.sendSms
+  // Other handlers will be added as implemented
 };
 
 // Notification system core functionality
@@ -25,10 +27,28 @@ const notificationSystem = {
   send: async (type, recipient, message, options = {}) => {
     console.log(`Sending ${type} notification to ${recipient}`);
     
-    if (!handlers[type]) {
-      throw new Error(`Notification type '${type}' is not supported`);
+   if (!notificationHandlers[type]) {
+      const error = new Error(`Notification type '${type}' not supported`);
+      error.code = 'UNSUPPORTED_TYPE';
+      return Promise.reject(error);
     }
-    
+     try {
+      // For email notifications, use subject and message format
+      if (type === NOTIFICATION_TYPES.EMAIL) {
+        return await notificationHandlers[type](
+          recipient, 
+          options.subject || 'Notification', 
+          message, 
+          options
+        );
+      }
+      
+      // For other notification types (SMS, push, webhook)
+      return await notificationHandlers[type](recipient, message, options);
+    } catch (error) {
+      console.error(`Failed to send ${type} notification:`, error.message);
+      throw error; // Re-throw for caller to handle
+    }
     try {
       // For email type, we expect different parameters
       if (type === NOTIFICATION_TYPES.EMAIL) {
