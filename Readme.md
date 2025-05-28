@@ -61,7 +61,66 @@ notifier.sms.send('+1234567890', 'Your verification code is 123456');
 notifier.push.send('device-token-123', 'You have a new message');
 ```
 
-### Using the Unified Interface
+### Using the Unified Interface (Legacy)
+
+```javascript
+const notifier = require('./index');
+
+// Send notifications through different channels using the same interface
+notifier.sendNotification('email', 'user@example.com', 'Welcome!');
+notifier.sendNotification('sms', '+1234567890', 'Your code: 123456');
+notifier.sendNotification('push', 'device-id', 'New message', { 
+  badge: 1,
+  sound: 'default'
+});
+
+### Using the Notification Dispatcher (Recommended)
+
+The dispatcher accepts a notification object with type, recipient, and message fields:
+
+```javascript
+const notifier = require('./index');
+
+// Dispatch an email notification
+notifier.dispatchNotification({
+  type: 'email',
+  recipient: 'user@example.com',
+  message: 'Welcome to our service!',
+  options: {
+    subject: 'Welcome Email'
+  }
+});
+
+// Dispatch an SMS notification
+notifier.dispatchNotification({
+  type: 'sms',
+  recipient: '+1234567890',
+  message: 'Your verification code: 123456'
+});
+
+// Error handling with async/await
+async function sendNotifications() {
+  try {
+    // Successful notification
+    const result = await notifier.dispatchNotification({
+      type: 'email',
+      recipient: 'user@example.com',
+      message: 'This is an important message'
+    });
+    console.log('Notification sent:', result);
+    
+    // This will throw an error due to unsupported type
+    await notifier.dispatchNotification({
+      type: 'unsupported',
+      recipient: 'recipient',
+      message: 'This will fail gracefully'
+    });
+  } catch (error) {
+    console.error('Notification error:', error.message);
+    // Error handling code here
+  }
+}
+```
 
 ```javascript
 const notifier = require('./index');

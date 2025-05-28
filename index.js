@@ -7,7 +7,7 @@ const path = require('path');
 const fs = require('fs');
 const config = require('./config');
 const notificationSystem = require('./notifications');
-
+const { dispatchNotification } = require('./dispatcher');
 
 // Example function to demonstrate usage
 function sendNotification(type, recipient, message, options = {}) {
@@ -24,7 +24,8 @@ console.log(`Initializing notification system in ${process.env.NODE_ENV || 'deve
 // Export all notification methods
 module.exports = {
   // ...notifications,
-  sendNotification
+  sendNotification,
+  dispatchNotification
 };
 
 
@@ -82,7 +83,49 @@ if (require.main === module) {
   //     console.log('Email configured with:', config.email.host);
   //   }
   // }
+ 
+  // Example of using the new dispatcher
+  console.log('\nExample: Using the notification dispatcher');
 
+    // Example: Email notification
+  dispatchNotification({
+    type: 'email',
+    recipient: 'example@example.com',
+    message: 'Hello from the notification dispatcher!',
+    options: {
+      subject: 'Test Email'
+    }
+  }).then(result => {
+    console.log('Email dispatch result:', result);
+  }).catch(error => {
+    console.error('Email dispatch error:', error.message);
+  });
+
+  // Example: SMS notification
+  setTimeout(() => {
+    dispatchNotification({
+      type: 'sms',
+      recipient: '+15551234567',
+      message: 'Your verification code is 123456',
+    }).then(result => {
+      console.log('SMS dispatch result:', result);
+    }).catch(error => {
+      console.error('SMS dispatch error:', error.message);
+    });
+  }, 1000);
+  
+  // Example: Unsupported notification type
+  setTimeout(() => {
+    dispatchNotification({
+      type: 'invalid_type',
+      recipient: 'recipient',
+      message: 'This should fail gracefully',
+    }).then(result => {
+      console.log('Invalid type result:', result);
+    }).catch(error => {
+      console.error('Invalid type properly handled:', error.message);
+    });
+  }, 2000);
   // Example: Valid email
   notificationSystem.send(
     notificationSystem.types.EMAIL,
