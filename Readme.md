@@ -7,16 +7,42 @@ A modular notification system supporting multiple communication channels.
 
 - Send notifications through multiple channels:
   - Email
-  - SMS
+  - SMS (via Twilio)
   - Push notifications
+- Secure credentials management using environment variables
 - Extensible architecture for adding new notification channels
 - Simple, consistent API across all notification types
+
 
 ## Installation
 
 ```bash
+# Install dependencies
 npm install
+
+# Set up environment variables
+cp .env.example .env
+# Then edit .env file with your actual credentials
 ```
+
+## Configuration
+
+### Environment Variables
+
+This system uses environment variables to manage sensitive credentials. The following environment variables are required for SMS functionality:
+
+- `TWILIO_ACCOUNT_SID`: Your Twilio account SID
+- `TWILIO_AUTH_TOKEN`: Your Twilio auth token
+- `TWILIO_PHONE_NUMBER`: Your Twilio phone number in E.164 format (e.g., +15551234567)
+
+You can set these variables in several ways:
+
+1. Create a `.env` file in the root directory (recommended for development)
+2. Set them in your environment before running the application
+3. Use a service like AWS Parameter Store or Secrets Manager for production deployments
+
+**IMPORTANT**: Never commit your `.env` file with real credentials to version control!
+
 
 ## Usage
 

@@ -148,8 +148,83 @@ async function sendSms(to, message, options = {}) {
   }
 }
 
+// Check if required environment variables are available
+function validateEnvVariables() {
+  const requiredVars = [
+    'TWILIO_ACCOUNT_SID', 
+    'TWILIO_AUTH_TOKEN', 
+    'TWILIO_PHONE_NUMBER'
+  ];
+  
+  const missingVars = requiredVars.filter(varName => !process.env[varName]);
+  
+  if (missingVars.length > 0) {
+    throw new Error(
+      `Missing required environment variables for SMS service: ${missingVars.join(', ')}. ` +
+      `Please make sure these are defined in your .env file or environment.`
+    );
+  }
+}
+
+// Initialize Twilio client with credentials from environment variables
+function getTwilioClient() {
+  // Validate environment variables before trying to use them
+  validateEnvVariables();
+  
+  // Dynamically require Twilio to prevent errors if env vars are not set
+  const twilio = require('twilio');
+  
+  // Create and return the Twilio client with credentials from environment variables
+  return twilio(
+    process.env.TWILIO_ACCOUNT_SID,
+    process.env.TWILIO_AUTH_TOKEN
+  );
+}
+
+/**
+ * Send an SMS notification using Twilio
+ * @param {string} recipient - Phone number of the recipient in E.164 format
+ * @param {string} message - The message to be sent
+ * @param {Object} options - Additional options for the SMS
+ * @returns {Promise<Object>} - Promise resolving to the result of the operation
+ */
+async function send(recipient, message, options = {}) {
+  try {
+    // Only initialize the client when needed (lazy loading)
+    const twilioClient = getTwilioClient();
+    
+    // Log sending attempt (without exposing credentials)
+    console.log(`[SMS] Sending to: ${recipient}`);
+    
+    // Send the SMS using Twilio
+    const result = await twilioClient.messages.create({
+      body: message,
+      from: process.env.TWILIO_PHONE_NUMBER,
+      to: recipient,
+      ...options  // Allow passing additional Twilio options
+    });
+    
+    // Return a sanitized response
+    return {
+      type: 'sms',
+      provider: 'twilio',
+      recipient,
+      message,
+      messageId: result.sid,
+      timestamp: new Date(),
+      status: result.status
+    };
+  } catch (error) {
+    console.error(`[SMS] Error sending message to ${recipient}:`, error.message);
+    
+    // Re-throw with a sanitized error message that doesn't expose credentials
+    throw new Error(`Failed to send SMS: ${error.message}`);
+  }
+}
+
 module.exports = {
   sendSms,
   isValidPhoneNumber,
-  formatPhoneNumber
+  send,
+  formatPhoneNumber,
 };

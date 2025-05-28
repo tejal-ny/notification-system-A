@@ -9,11 +9,24 @@ const config = require('./config');
 const notificationSystem = require('./notifications');
 
 
+// Example function to demonstrate usage
+function sendNotification(type, recipient, message, options = {}) {
+  if (!notifications[type]) {
+    throw new Error(`Notification type '${type}' is not supported`);
+  }
+  
+  return notifications[type].send(recipient, message, options);
+}
+
 // Initialize the notification system
 console.log(`Initializing notification system in ${process.env.NODE_ENV || 'development'} mode...`);
 
-// Export notification functionality for use in other modules
-module.exports = notificationSystem;
+// Export all notification methods
+module.exports = {
+  // ...notifications,
+  sendNotification
+};
+
 
 async function sendExampleNotifications() {
   try {
@@ -57,6 +70,8 @@ async function sendExampleNotifications() {
 if (require.main === module) {
   console.log('Starting notification service with examples...');
   sendExampleNotifications()
+   console.log('Notification System initialized');
+  // console.log('Available notification types:', Object.keys(notifications));
   // Display configuration status
   // if (config.environment.isDevelopment) {
   //   console.log('Running in development mode');

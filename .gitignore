@@ -1,6 +1,6 @@
 # Dependency directories
 node_modules/
-
+npm-debug.log*
 # Environment configuration
 .env
 .env.local
@@ -22,3 +22,17 @@ pids
 
 # Optional eslint cache
 .eslintcache
+
+# Production build files
+dist/
+build/
+
+# OS specific files
+.DS_Store
+Thumbs.db
+
+# IDE specific files
+.idea/
+.vscode/
+*.swp
+*.swo
