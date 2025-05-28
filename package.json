@@ -3,9 +3,11 @@
   "version": "1.0.0",
   "description": "A modular notification system supporting multiple channels",
   "main": "index.js",
-  "scripts": {
+    "scripts": {
     "start": "node index.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "dev": "NODE_ENV=development EMAIL_MODE=mock node index.js",
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "test:email": "node tests/email.test.js"
   },
   "keywords": [
     "notifications",
