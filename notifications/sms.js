@@ -7,7 +7,8 @@
 
 // const errorHandler = require('../error-handler');
 const { withErrorHandling } = require('../error-handler');
-
+const errorHandler = require('../error-handler');
+const logger = require('../logger').createTypedLogger('sms');
 // Import Twilio or create mock if credentials are not available
 let twilio;
 let twilioClient;
@@ -189,37 +190,48 @@ function getTwilioClient() {
  * @returns {Promise<Object>} - Promise resolving to the result of the operation
  */
 async function sendSMS(recipient, message, options = {}) {
-  try {
+ try {
+    // Check if we're in mock mode
+    const isMock = process.env.SMS_MOCK_MODE === 'true' || options.mockMode === true;
+    
+    // Log the attempt
+    logger.logAttempt(recipient, message, options, isMock);
+    
     // Simulate error for testing (if requested)
     if (recipient.includes('error') || (options.simulateError === true)) {
       throw new Error('Simulated SMS sending failure');
     }
     
     // For mock mode, don't actually try to send via Twilio
-    if (process.env.SMS_MOCK_MODE === 'true' || options.mockMode === true) {
-      console.log(`[SMS] MOCK MODE: Would send to ${recipient}: "${message}"`);
-      
+    if (isMock) {
       // Simulate a delay that might happen with real SMS sending
       if (options.delay) {
         await new Promise(resolve => setTimeout(resolve, options.delay));
       }
       
-      return {
+      // Create a mock result
+      const result = {
         type: 'sms',
         provider: 'twilio-mock',
         recipient,
         message: message.length > 30 ? `${message.substring(0, 30)}...` : message,
         messageId: `mock-sms-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
         timestamp: new Date(),
-        status: 'sent'
+        status: 'sent',
+        isMock: true
       };
+      
+      // Log the sent notification with mock flag
+      logger.logSent(recipient, message, options, true, {
+        provider: 'twilio-mock',
+        messageId: result.messageId
+      });
+      
+      return result;
     }
     
     // Only initialize the client when needed (lazy loading)
     const twilioClient = getTwilioClient();
-    
-    // Log sending attempt (without exposing credentials)
-    console.log(`[SMS] Sending to: ${recipient}`);
     
     // Send the SMS using Twilio
     const result = await twilioClient.messages.create({
@@ -229,8 +241,8 @@ async function sendSMS(recipient, message, options = {}) {
       ...options  // Allow passing additional Twilio options
     });
     
-    // Return a sanitized response
-    return {
+    // Create a sanitized response
+    const response = {
       type: 'sms',
       provider: 'twilio',
       recipient,
@@ -239,16 +251,86 @@ async function sendSMS(recipient, message, options = {}) {
       timestamp: new Date(),
       status: result.status
     };
+    
+    // Log the successful send
+    logger.logSent(recipient, message, options, false, {
+      provider: 'twilio',
+      messageId: result.sid,
+      twilioStatus: result.status
+    });
+    
+    return response;
   } catch (error) {
+    // Log the failure
+    logger.logFailed(recipient, message, error, options, 
+                    process.env.SMS_MOCK_MODE === 'true' || options.mockMode === true, {
+      provider: 'twilio'
+    });
+    
     // Let the error propagate to be handled by the error handler wrapper
     throw error;
   }
+
+  // try {
+  //   // Simulate error for testing (if requested)
+  //   if (recipient.includes('error') || (options.simulateError === true)) {
+  //     throw new Error('Simulated SMS sending failure');
+  //   }
+    
+  //   // For mock mode, don't actually try to send via Twilio
+  //   if (process.env.SMS_MOCK_MODE === 'true' || options.mockMode === true) {
+  //     console.log(`[SMS] MOCK MODE: Would send to ${recipient}: "${message}"`);
+      
+  //     // Simulate a delay that might happen with real SMS sending
+  //     if (options.delay) {
+  //       await new Promise(resolve => setTimeout(resolve, options.delay));
+  //     }
+      
+  //     return {
+  //       type: 'sms',
+  //       provider: 'twilio-mock',
+  //       recipient,
+  //       message: message.length > 30 ? `${message.substring(0, 30)}...` : message,
+  //       messageId: `mock-sms-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+  //       timestamp: new Date(),
+  //       status: 'sent'
+  //     };
+  //   }
+    
+  //   // Only initialize the client when needed (lazy loading)
+  //   const twilioClient = getTwilioClient();
+    
+  //   // Log sending attempt (without exposing credentials)
+  //   console.log(`[SMS] Sending to: ${recipient}`);
+    
+  //   // Send the SMS using Twilio
+  //   const result = await twilioClient.messages.create({
+  //     body: message,
+  //     from: process.env.TWILIO_PHONE_NUMBER,
+  //     to: recipient,
+  //     ...options  // Allow passing additional Twilio options
+  //   });
+    
+  //   // Return a sanitized response
+  //   return {
+  //     type: 'sms',
+  //     provider: 'twilio',
+  //     recipient,
+  //     message: message.length > 30 ? `${message.substring(0, 30)}...` : message,
+  //     messageId: result.sid,
+  //     timestamp: new Date(),
+  //     status: result.status
+  //   };
+  // } catch (error) {
+  //   // Let the error propagate to be handled by the error handler wrapper
+  //   throw error;
+  // }
 }
 
 // Apply centralized error handling wrapper
 // const send = errorHandler.withErrorHandling(sendSMS, 'sms');
 
-const send = withErrorHandling(sendSMS, 'sms');
+const send = errorHandler.withErrorHandling(sendSMS, 'sms');
 
 module.exports = {
   sendSms,

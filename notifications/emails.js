@@ -8,6 +8,10 @@
 const nodemailer = require('nodemailer');
 const config = require('../config.js');
 const { isValidEmail, isNotEmpty } = require('../utilities/validators');
+
+const errorHandler = require('../error-handler');
+const logger = require('../logger.js').createTypedLogger('email');
+
 // const errorHandler = require('../error-handler.js');
 const { withErrorHandling } = require('../error-handler');
 // Validate email configuration on module load
@@ -102,14 +106,40 @@ function validateEmailInput(to, subject, body) {
  */
 async function sendEmail(recipient, message, options = {}) {
   try {
+    // Check if we're in mock mode
+    const isMock = process.env.EMAIL_MOCK_MODE === 'true' || options.mockMode === true;
+    
+    // Log the attempt
+    logger.logAttempt(recipient, message, options, isMock);
+    
     // Simulate potential errors (for demonstration)
     if (recipient.includes('error') || (options.simulateError === true)) {
       throw new Error('Simulated email sending failure');
     }
     
+    // For mock mode, don't actually try to send
+    if (isMock) {
+      // Log success with mock flag
+      const result = {
+        type: 'email',
+        recipient,
+        message: message.length > 30 ? `${message.substring(0, 30)}...` : message,
+        messageId: `mock-email-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+        timestamp: new Date(),
+        status: 'sent',
+        isMock: true
+      };
+      
+      // Log the sent notification with mock flag
+      logger.logSent(recipient, message, options, true, {
+        messageId: result.messageId
+      });
+      
+      return result;
+    }
+    
     // In a real implementation, this would use an email service/library
-    console.log(`[EMAIL] To: ${recipient} | Message: ${message}`);
-    console.log(`[EMAIL] Options:`, options);
+    // Such as nodemailer, sendgrid, AWS SES, etc.
     
     // Simulate a delay that might happen with real email sending
     if (options.delay) {
@@ -117,7 +147,7 @@ async function sendEmail(recipient, message, options = {}) {
     }
     
     // Return a response like a real email API might
-    return {
+    const result = {
       type: 'email',
       recipient,
       message: message.length > 30 ? `${message.substring(0, 30)}...` : message,
@@ -125,13 +155,52 @@ async function sendEmail(recipient, message, options = {}) {
       timestamp: new Date(),
       status: 'sent'
     };
+    
+    // Log the successful send
+    logger.logSent(recipient, message, options, false, {
+      messageId: result.messageId
+    });
+    
+    return result;
   } catch (error) {
-    // Use the error handler to format and log the error
-    throw error; // Let the dispatcher handle this
+    // Log the failure
+    logger.logFailed(recipient, message, error, options, 
+                     process.env.EMAIL_MOCK_MODE === 'true' || options.mockMode === true);
+    
+    // Let the error propagate to be handled by the error handler wrapper
+    throw error;
   }
+  // try {
+  //   // Simulate potential errors (for demonstration)
+  //   if (recipient.includes('error') || (options.simulateError === true)) {
+  //     throw new Error('Simulated email sending failure');
+  //   }
+    
+  //   // In a real implementation, this would use an email service/library
+  //   console.log(`[EMAIL] To: ${recipient} | Message: ${message}`);
+  //   console.log(`[EMAIL] Options:`, options);
+    
+  //   // Simulate a delay that might happen with real email sending
+  //   if (options.delay) {
+  //     await new Promise(resolve => setTimeout(resolve, options.delay));
+  //   }
+    
+  //   // Return a response like a real email API might
+  //   return {
+  //     type: 'email',
+  //     recipient,
+  //     message: message.length > 30 ? `${message.substring(0, 30)}...` : message,
+  //     messageId: `email-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+  //     timestamp: new Date(),
+  //     status: 'sent'
+  //   };
+  // } catch (error) {
+  //   // Use the error handler to format and log the error
+  //   throw error; // Let the dispatcher handle this
+  // }
 }
-// const send = errorHandler.withErrorHandling(sendEmail, 'email');
-const send = withErrorHandling(sendEmail, 'email');
+
+const send = errorHandler.withErrorHandling(sendEmail, 'email');
 
 module.exports = {
   sendEmail,

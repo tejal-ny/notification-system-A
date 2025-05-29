@@ -4,7 +4,6 @@
 A modular notification system supporting multiple communication channels.
 
 ## Features
-
 - Send notifications through multiple channels:
   - Email
   - SMS (via Twilio)
@@ -12,6 +11,11 @@ A modular notification system supporting multiple communication channels.
 - Two flexible APIs for sending notifications:
   - Parameter-based API with individual arguments
   - Object-based API with a single notification object
+- Comprehensive notification logging:
+  - Colorful, formatted console output
+  - Structured file-based logs
+  - Clear "MOCK" indicators for simulated notifications
+  - Complete tracking of all notification attempts
 - Comprehensive input validation:
   - Email format validation
   - Phone number format validation
@@ -22,11 +26,72 @@ A modular notification system supporting multiple communication channels.
   - Detailed error logging with privacy protection
   - Error tracking with unique error IDs
   - File-based error logs for monitoring and debugging
+- Mock mode for development and testing:
+  - Simulate notifications without actually sending them
+  - Configureable with environment variables or per-request
+  - Realistic response format matching real services
 - Secure credentials management using environment variables
 - Non-throwing API that returns errors as structured data instead of exceptions
 - Extensible architecture for adding new notification channels
 - Simple, consistent API across all notification types
 
+## Notification Logging
+
+The system provides comprehensive logging of all outgoing notifications:
+
+### Console Logging
+
+Notifications are logged to the console in a readable, colorful format:
+
+```
+[10:15:30 AM] ✓ [EMAIL] To: user@example.com | Welcome to our service! This is an...
+[10:15:31 AM] ✓ [SMS] To: +15551234567 | Your verification code is 123456
+[10:15:32 AM] ⊘ [EMAIL] To: test@example.com [MOCK] | This is a simulated email that...
+[10:15:33 AM] ✗ [SMS] To: invalid-number | Failed: Invalid phone number format
+```
+
+Each log entry includes:
+- Timestamp
+- Status indicator (✓ for success, ✗ for error, ⊘ for mock/simulated)
+- Notification type in color (EMAIL, SMS, PUSH)
+- Recipient
+- Mock indicator (if simulated)
+- Message preview
+
+### File Logging
+
+All notifications are also logged to a JSON file (`logs/notifications.log`) for historical records and analysis:
+
+```json
+{"timestamp":"2025-05-28T14:23:45.123Z","type":"email","recipient":"user@example.com","messagePreview":"Welcome to our service!","options":"{}","status":"sent","mock":false}
+{"timestamp":"2025-05-28T14:23:46.456Z","type":"sms","recipient":"+15551234567","messagePreview":"Your verification code is 123456","options":"{}","status":"sent","mock":true}
+```
+
+### Accessing Logs
+
+You can access the notification logs programmatically:
+
+```javascript
+// Get the most recent log entries (default: last 100)
+const recentLogs = notifier.getNotificationLog();
+
+// Clear the log file if needed (e.g., in tests)
+notifier.clearNotificationLog();
+```
+
+### Configuring Logging
+
+Logging behavior can be configured through environment variables:
+
+```env
+LOG_DIRECTORY=logs
+LOG_LEVEL=info              # debug, info, warn, error
+ENABLE_CONSOLE_LOGGING=true
+ENABLE_FILE_LOGGING=true
+MAX_MESSAGE_PREVIEW_LENGTH=50
+```
+
+## Error Handling
 
 ### Validation Rules
 

@@ -19,6 +19,7 @@
  "author": "",
   "license": "MIT",
   "dependencies": {
+    "chalk": "^4.1.2",
     "dotenv": "^16.3.1",
     "nodemailer": "^6.9.4",
     "twilio": "^4.11.2"

@@ -7,8 +7,9 @@ const path = require('path');
 const fs = require('fs');
 const config = require('./config');
 const notificationSystem = require('./notifications');
-const { dispatchNotification } = require('./dispatcher');
+const { dispatcher,dispatchNotification } = require('./dispatcher');
 const errorHandler = require('./error-handler');
+const logger = require('./logger');
 // Example function to demonstrate usage
 function sendNotification(type, recipient, message, options = {}) {
   if (!notifications[type]) {
@@ -23,17 +24,27 @@ console.log(`Initializing notification system in ${process.env.NODE_ENV || 'deve
 
 // Export all notification methods
 module.exports = {
-  // ...notifications,
-  sendNotification,
-  dispatchNotification,
-  isValidPhoneNumber: dispatchNotification.isValidPhoneNumber,
+ sendNotification,
+  dispatch: dispatcher?.dispatchNotification,
+  isNotificationTypeSupported: dispatcher?.isTypeSupported,
+  getSupportedNotificationTypes: dispatcher?.getSupportedTypes,
+  
+  // Expose validation utilities
+  validateNotification: dispatcher?.validateNotification,
+  isValidEmail: dispatcher?.isValidEmail,
+  isValidPhoneNumber: dispatcher?.isValidPhoneNumber,
   
   // Expose error handling utilities
-  getErrorLog: dispatchNotification.getErrorLog,
-  clearErrorLog: dispatchNotification.clearErrorLog,
+  getErrorLog: dispatcher?.getErrorLog,
+  clearErrorLog: dispatcher?.clearErrorLog,
   
-  // If we need to expose the error handler directly
-  errorHandler
+  // Expose logging utilities
+  getNotificationLog: logger.getNotificationLog,
+  clearNotificationLog: logger.clearNotificationLog,
+  
+  // If we need to expose utility modules directly
+  errorHandler,
+  logger
 };
 
 
