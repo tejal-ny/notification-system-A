@@ -11,6 +11,7 @@ require('dotenv').config();
 
 // Import notification channels
 const notifications = require('./notifications');
+const errorHandler = require('./error-handler');
 
 
 
@@ -136,99 +137,81 @@ function validateNotification(notification) {
  * @throws {Error} - If the notification type is unsupported or required fields are missing
  */
 async function dispatchNotification(notification) {
-  // Validate notification object
-  if (!notification) {
-    throw new Error('Notification object is required');
-  }
-  
-  const { type, recipient, message, options = {} } = notification;
-  
-  // Check required fields
-  if (!type) {
-    throw new Error('Notification type is required');
-  }
-  
-  if (!recipient) {
-    throw new Error('Notification recipient is required');
-  }
-  
-  if (!message) {
-    throw new Error('Notification message is required');
-  }
-  
-   // Convert type to lowercase for case-insensitive comparison
-  const normalizedType = type ? type.toLowerCase() : null;
-  
-// Validate notification based on its type
-  const validationResult = validateNotification(notification);
-  
-  if (!validationResult.isValid) {
-    // Log the validation error
-    console.error(`[DISPATCHER] Validation error: ${validationResult.error}`);
-    
-    // Return a failed dispatch result rather than throwing
-    return {
-      type: normalizedType,
-      recipient,
-      message: message ? (message.length > 20 ? `${message.substring(0, 20)}...` : message) : null,
-      status: 'failed',
-      error: validationResult.error,
-      dispatched: false,
-      dispatchTimestamp: new Date()
-    };
-  }
-  
-  // Check if the notification type is supported
-  if (!notifications[normalizedType]) {
-    const error = `Notification type '${type}' is not supported. Supported types are: ${Object.keys(notifications).join(', ')}`;
-    console.error(`[DISPATCHER] ${error}`);
-    
-    return {
-      type: normalizedType,
-      recipient,
-      message: message ? (message.length > 20 ? `${message.substring(0, 20)}...` : message) : null,
-      status: 'failed',
-      error,
-      dispatched: false,
-      dispatchTimestamp: new Date()
-    };
-  }
-  
   try {
+    // Validate the notification object
+    if (!notification) {
+      return errorHandler.handleException(
+        'dispatcher', 
+        'unknown', 
+        null, 
+        'Notification object is required'
+      );
+    }
+    
+    const { type, recipient, message, options = {} } = notification;
+    
+    // Convert type to lowercase for case-insensitive comparison
+    const normalizedType = type ? type.toLowerCase() : null;
+    
+    // Validate notification based on its type
+    const validationResult = validateNotification(notification);
+    
+    if (!validationResult.isValid) {
+      // Handle validation error through the error handler
+      return errorHandler.handleException(
+        normalizedType || 'dispatcher', 
+        recipient || 'unknown', 
+        message || null, 
+        validationResult.error,
+        { validationError: true }
+      );
+    }
+    
+    // Check if the notification type is supported
+    if (!notifications[normalizedType]) {
+      const error = `Notification type '${type}' is not supported. Supported types are: ${Object.keys(notifications).join(', ')}`;
+      
+      return errorHandler.handleException(
+        'dispatcher',
+        recipient,
+        message,
+        error,
+        { unsupportedType: true }
+      );
+    }
+    
     // Log the dispatch attempt
     console.log(`[DISPATCHER] Sending ${normalizedType} notification to: ${recipient}`);
     
-    // Dispatch to the appropriate notification service
-    const result = await notifications[normalizedType].send(recipient, message, options);
-    
-    // Add dispatch metadata to the result
-    return {
-      ...result,
-      dispatched: true,
-      dispatchTimestamp: new Date()
-    };
-  } catch (error) {
-    // Handle errors from notification services
-    console.error(`[DISPATCHER] Error sending ${normalizedType} notification:`, error.message);
-    
-    // Return a failed dispatch result instead of throwing
-    return {
-      type: normalizedType,
-      recipient,
-      message: message ? (message.length > 20 ? `${message.substring(0, 20)}...` : message) : null,
-      status: 'failed',
-      error: `Failed to dispatch ${normalizedType} notification: ${error.message}`,
-      dispatched: false,
-      dispatchTimestamp: new Date()
-    };
-  }
-  // Dispatch to the appropriate notification service
-  try {
-    console.log(`Dispatching ${normalizedType} notification to ${recipient}`);
-    return await notifications[normalizedType].send(recipient, message, options);
-  } catch (error) {
-    console.error(`Failed to dispatch ${normalizedType} notification:`, error.message);
-    throw error;
+    try {
+      // Dispatch to the appropriate notification service
+      const result = await notifications[normalizedType].send(recipient, message, options);
+      
+      // Add dispatch metadata to the result
+      return {
+        ...result,
+        dispatched: true,
+        dispatchTimestamp: new Date()
+      };
+    } catch (error) {
+      // Handle service-specific errors through error handler
+      return errorHandler.handleException(
+        normalizedType,
+        recipient,
+        message,
+        error,
+        { options }
+      );
+    }
+  } catch (unexpectedError) {
+    // Catch any unexpected errors in the dispatcher itself
+    return errorHandler.handleException(
+      'dispatcher',
+      notification?.recipient || 'unknown',
+      notification?.message || null,
+      unexpectedError,
+      { unexpectedError: true }
+    );
   }
 }
 /**
@@ -250,11 +233,31 @@ function isTypeSupported(type) {
 function getSupportedTypes() {
   return Object.keys(notifications);
 }
+
+/**
+ * Get the error log contents
+ * 
+ * @param {number} [maxLines=100] - Maximum number of lines to return
+ * @returns {string} - Error log contents
+ */
+function getErrorLog(maxLines = 100) {
+  return errorHandler.getErrorLog(maxLines);
+}
+
+/**
+ * Clear the error log (mainly for testing)
+ */
+function clearErrorLog() {
+  errorHandler.clearErrorLog();
+}
+
 module.exports = {
   dispatchNotification,
   isTypeSupported,
   getSupportedTypes,
   validateNotification,
   isValidEmail,
-  isValidPhoneNumber
+  isValidPhoneNumber,
+  getErrorLog,
+  clearErrorLog
 };

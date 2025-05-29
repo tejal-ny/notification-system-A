@@ -5,7 +5,8 @@
  * using Twilio or a mock implementation for development
  */
 
-
+// const errorHandler = require('../error-handler');
+const { withErrorHandling } = require('../error-handler');
 
 // Import Twilio or create mock if credentials are not available
 let twilio;
@@ -180,7 +181,6 @@ function getTwilioClient() {
     process.env.TWILIO_AUTH_TOKEN
   );
 }
-
 /**
  * Send an SMS notification using Twilio
  * @param {string} recipient - Phone number of the recipient in E.164 format
@@ -188,8 +188,33 @@ function getTwilioClient() {
  * @param {Object} options - Additional options for the SMS
  * @returns {Promise<Object>} - Promise resolving to the result of the operation
  */
-async function send(recipient, message, options = {}) {
+async function sendSMS(recipient, message, options = {}) {
   try {
+    // Simulate error for testing (if requested)
+    if (recipient.includes('error') || (options.simulateError === true)) {
+      throw new Error('Simulated SMS sending failure');
+    }
+    
+    // For mock mode, don't actually try to send via Twilio
+    if (process.env.SMS_MOCK_MODE === 'true' || options.mockMode === true) {
+      console.log(`[SMS] MOCK MODE: Would send to ${recipient}: "${message}"`);
+      
+      // Simulate a delay that might happen with real SMS sending
+      if (options.delay) {
+        await new Promise(resolve => setTimeout(resolve, options.delay));
+      }
+      
+      return {
+        type: 'sms',
+        provider: 'twilio-mock',
+        recipient,
+        message: message.length > 30 ? `${message.substring(0, 30)}...` : message,
+        messageId: `mock-sms-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+        timestamp: new Date(),
+        status: 'sent'
+      };
+    }
+    
     // Only initialize the client when needed (lazy loading)
     const twilioClient = getTwilioClient();
     
@@ -209,18 +234,21 @@ async function send(recipient, message, options = {}) {
       type: 'sms',
       provider: 'twilio',
       recipient,
-      message,
+      message: message.length > 30 ? `${message.substring(0, 30)}...` : message,
       messageId: result.sid,
       timestamp: new Date(),
       status: result.status
     };
   } catch (error) {
-    console.error(`[SMS] Error sending message to ${recipient}:`, error.message);
-    
-    // Re-throw with a sanitized error message that doesn't expose credentials
-    throw new Error(`Failed to send SMS: ${error.message}`);
+    // Let the error propagate to be handled by the error handler wrapper
+    throw error;
   }
 }
+
+// Apply centralized error handling wrapper
+// const send = errorHandler.withErrorHandling(sendSMS, 'sms');
+
+const send = withErrorHandling(sendSMS, 'sms');
 
 module.exports = {
   sendSms,

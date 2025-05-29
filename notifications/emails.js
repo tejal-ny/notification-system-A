@@ -8,7 +8,8 @@
 const nodemailer = require('nodemailer');
 const config = require('../config.js');
 const { isValidEmail, isNotEmpty } = require('../utilities/validators');
-
+// const errorHandler = require('../error-handler.js');
+const { withErrorHandling } = require('../error-handler');
 // Validate email configuration on module load
 // config.validateConfig();
 
@@ -92,74 +93,48 @@ function validateEmailInput(to, subject, body) {
  * @param {Object} options - Additional options
  * @returns {Promise} - Resolves with send result or rejects with validation errors
  */
-async function sendEmail(to, subject, body, options = {}) {
-  // Validate input parameters
-  const validation = validateEmailInput(to, subject, body);
-  
-  if (!validation.isValid) {
-    const errorMessage = `Email validation failed: ${validation.errors.join('; ')}`;
-    console.error(errorMessage);
-    
-    // Reject with validation errors
-    return Promise.reject({
-      success: false,
-      error: 'VALIDATION_ERROR',
-      message: errorMessage,
-      details: validation.errors
-    });
-  }
-  
-  // Get from address from options or default from config
-  const from = options.from || config.email.defaultFrom;
-  
-  // Validate sender email if provided in options
-  if (options.from && !isValidEmail(options.from)) {
-    const errorMessage = `Invalid sender email format: ${options.from}`;
-    console.error(errorMessage);
-    
-    return Promise.reject({
-      success: false,
-      error: 'VALIDATION_ERROR',
-      message: errorMessage
-    });
-  }
-  
-  // Use mock implementation in development or mock mode
-  if (process.env.EMAIL_MODE === 'mock' || config.isDev) {
-    return sendEmailMock(to, subject, body, { ...options, from });
-  }
-  
-  // Initialize transporter if not already done
-  if (!transporter) {
-    transporter = initTransporter();
-  }
-  
+/**
+ * Send an email notification
+ * @param {string} recipient - Email address of the recipient
+ * @param {string} message - The message to be sent
+ * @param {Object} options - Additional options for the email
+ * @returns {Promise<Object>} - Promise resolving to the result of the operation
+ */
+async function sendEmail(recipient, message, options = {}) {
   try {
-    // Send email using nodemailer
-    const result = await transporter.sendMail({
-      from: from,
-      to: to,
-      subject: subject,
-      text: body,
-      html: options.html || body
-    });
+    // Simulate potential errors (for demonstration)
+    if (recipient.includes('error') || (options.simulateError === true)) {
+      throw new Error('Simulated email sending failure');
+    }
     
+    // In a real implementation, this would use an email service/library
+    console.log(`[EMAIL] To: ${recipient} | Message: ${message}`);
+    console.log(`[EMAIL] Options:`, options);
+    
+    // Simulate a delay that might happen with real email sending
+    if (options.delay) {
+      await new Promise(resolve => setTimeout(resolve, options.delay));
+    }
+    
+    // Return a response like a real email API might
     return {
-      success: true,
-      messageId: result.messageId
+      type: 'email',
+      recipient,
+      message: message.length > 30 ? `${message.substring(0, 30)}...` : message,
+      messageId: `email-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+      timestamp: new Date(),
+      status: 'sent'
     };
   } catch (error) {
-    console.error('Failed to send email:', error);
-    throw {
-      success: false,
-      error: 'SEND_ERROR',
-      message: `Failed to send email: ${error.message}`,
-      originalError: error
-    };
+    // Use the error handler to format and log the error
+    throw error; // Let the dispatcher handle this
   }
 }
+// const send = errorHandler.withErrorHandling(sendEmail, 'email');
+const send = withErrorHandling(sendEmail, 'email');
 
 module.exports = {
   sendEmail,
+  send,
   validateEmailInput  // Export the validation function for testing
 };

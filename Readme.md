@@ -9,10 +9,109 @@ A modular notification system supporting multiple communication channels.
   - Email
   - SMS (via Twilio)
   - Push notifications
+- Two flexible APIs for sending notifications:
+  - Parameter-based API with individual arguments
+  - Object-based API with a single notification object
+- Comprehensive input validation:
+  - Email format validation
+  - Phone number format validation
+  - Message length and content validation
+  - Graceful handling of invalid inputs
+- Centralized error handling:
+  - Consistent error format across all channels
+  - Detailed error logging with privacy protection
+  - Error tracking with unique error IDs
+  - File-based error logs for monitoring and debugging
 - Secure credentials management using environment variables
+- Non-throwing API that returns errors as structured data instead of exceptions
 - Extensible architecture for adding new notification channels
 - Simple, consistent API across all notification types
 
+
+### Validation Rules
+
+The system validates different aspects based on notification type:
+
+1. **Email**
+   - Must be a valid email format (user@domain.tld)
+   - Message must not exceed maximum length (10,000 chars)
+
+2. **SMS**
+   - Must be a valid phone number format
+   - Message must not exceed 160 characters
+   - Supports various phone formats (+1234567890, 1234567890)
+
+3. **Push**
+   - Device token/ID must be a non-empty string with minimum length
+   - Message must not exceed maximum length
+
+## Error Handling
+
+The notification system provides centralized error handling with consistent logging and reporting:
+
+### Non-Throwing Error Handling
+
+Unlike many APIs that throw exceptions, this system returns structured error responses:
+
+```javascript
+const result = await notifier.dispatch({
+  type: 'email',
+  recipient: 'invalid-email',  // This will fail validation
+  message: 'Hello world'
+});
+
+// Check if the notification was sent successfully
+if (result.dispatched) {
+  console.log('Notification sent successfully');
+} else {
+  console.error(`Failed to send notification: ${result.error}`);
+  console.error(`Error ID for tracking: ${result.errorId}`);
+}
+```
+
+### Error Logging
+
+Errors are automatically logged to a file with privacy protection:
+
+```javascript
+// Get the contents of the error log
+const errorLog = notifier.getErrorLog();
+console.log(errorLog);
+
+// Clear the error log if needed (e.g., for testing)
+notifier.clearErrorLog();
+```
+
+### Error Response Format
+
+All errors return a standardized format:
+
+```javascript
+{
+  type: 'email',                     // The notification type
+  recipient: 'use***@example.com',   // Sanitized for privacy
+  message: 'Hello world',            // The message (truncated if too long)
+  status: 'failed',                  // Always 'failed' for errors
+  error: 'Invalid email address',    // Human-readable error message
+  errorId: 'err-20250528123456-123', // Unique error ID for tracking
+  dispatched: false,                 // Always false for errors
+  dispatchTimestamp: [Date object]   // When the error occurred
+}
+```
+
+### Privacy Protection
+
+The system sanitizes sensitive information in error logs and responses:
+
+- Email addresses: `user@example.com` → `use***@example.com`
+- Phone numbers: `+15551234567` → `******4567`
+- Messages: Truncated to prevent sensitive content exposure
+
+### Complete Examples
+
+See the example files for complete usage demonstrations:
+- `examples/dispatch-examples.js` - General usage examples
+- `examples/error-handling-examples.js` - Error handling specific examples
 
 ## Installation
 

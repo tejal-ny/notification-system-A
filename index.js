@@ -8,7 +8,7 @@ const fs = require('fs');
 const config = require('./config');
 const notificationSystem = require('./notifications');
 const { dispatchNotification } = require('./dispatcher');
-
+const errorHandler = require('./error-handler');
 // Example function to demonstrate usage
 function sendNotification(type, recipient, message, options = {}) {
   if (!notifications[type]) {
@@ -25,7 +25,15 @@ console.log(`Initializing notification system in ${process.env.NODE_ENV || 'deve
 module.exports = {
   // ...notifications,
   sendNotification,
-  dispatchNotification
+  dispatchNotification,
+  isValidPhoneNumber: dispatchNotification.isValidPhoneNumber,
+  
+  // Expose error handling utilities
+  getErrorLog: dispatchNotification.getErrorLog,
+  clearErrorLog: dispatchNotification.clearErrorLog,
+  
+  // If we need to expose the error handler directly
+  errorHandler
 };
 
 
