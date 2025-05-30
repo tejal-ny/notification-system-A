@@ -94,7 +94,8 @@ function createDefaultPreferences() {
     emailEnabled: true,  // Default to opt-in for email
     smsEnabled: false,   // Default to opt-out for SMS (requires explicit opt-in)
     createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString()
+    updatedAt: new Date().toISOString(),
+    isDeleted: false,
   };
 }
 
@@ -110,6 +111,7 @@ function createDefaultPreferences(overrides = {}) {
     smsEnabled: false,   // Default to opt-out for SMS (requires explicit opt-in)
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
+    isDeleted: false,
     ...overrides
   };
 }
@@ -430,47 +432,6 @@ function updateExistingUserPreferences(userId, preferences) {
 }
 
 /**
- * Get preferences for a specific user, creating default preferences if user doesn't exist
- * 
- * If the user doesn't exist in the preferences data, this function will automatically
- * initialize them with default preferences and persist this to the JSON file.
- * 
- * @param {string} userId - User ID or email
- * @param {Object} [defaultOverrides={}] - Override default values if creating new user
- * @returns {Object|null} User preferences or null if invalid userId
- */
-function getUserPreferences(userId, defaultOverrides = {}) {
-  // Validate user ID
-  if (!isValidUserId(userId)) {
-    console.error(`Invalid user ID: ${userId}`);
-    return null;
-  }
-  
-  // Check if user exists in the preferences store
-  if (!preferencesStore[userId]) {
-    // User doesn't exist - create default preferences
-    console.log(`Creating default preferences for new user: ${userId}`);
-    
-    // Create default preferences with any overrides
-    const defaultPrefs = createDefaultPreferences(defaultOverrides);
-    
-    // Store in preferences store
-    preferencesStore[userId] = defaultPrefs;
-    
-    // Persist to file
-    savePreferences();
-    
-    console.log(`Default preferences created and saved for: ${userId}`);
-  }
-
-  console.log(`User Preference for email: ${preferencesStore[userId].emailEnabled}`);
-  console.log(`User Preference for sms: ${preferencesStore[userId].smsEnabled}`);
-
-  // Return existing (or newly created) preferences
-  return preferencesStore[userId];
-}
-
-/**
  * Initialize default preferences for multiple users
  * 
  * This function takes an array of user IDs and creates default preferences
@@ -630,6 +591,60 @@ function getUsersOptedInToChannel(channel) {
   console.log(`Found ${optedInUsers.length} users opted in to ${normalizedChannel} notifications`);
   
   return optedInUsers;
+}
+
+/**
+ * Get preferences for a specific user, creating default preferences if user doesn't exist
+ * 
+ * If the user doesn't exist in the preferences data, this function will automatically
+ * initialize them with default preferences and persist this to the JSON file.
+ * Users marked as deleted will be treated as if they don't exist, and new default
+ * preferences will be created for them.
+ * 
+ * @param {string} userId - User ID or email
+ * @param {Object} [defaultOverrides={}] - Override default values if creating new user
+ * @param {boolean} [includeDeleted=false] - If true, will return preferences even if isDeleted=true
+ * @returns {Object|null} User preferences or null if invalid userId
+ */
+function getUserPreferences(userId, defaultOverrides = {}, includeDeleted = false) {
+  // Validate user ID
+  if (!isValidUserId(userId)) {
+    console.error(`Invalid user ID: ${userId}`);
+    return null;
+  }
+  
+  // Check if user exists in the preferences store and is not deleted
+  const userExists = preferencesStore[userId];
+  const isUserDeleted = userExists && preferencesStore[userId].isDeleted === true;
+  
+  // If user doesn't exist or is deleted (unless includeDeleted=true)
+  if (!userExists || (isUserDeleted && !includeDeleted)) {
+    // If the user was deleted and includeDeleted=false, we treat them as new
+    if (isUserDeleted) {
+      console.log(`User ${userId} was previously deleted. Creating new preferences.`);
+    } else {
+      console.log(`Creating default preferences for new user: ${userId}`);
+    }
+    
+    // Create default preferences with any overrides
+    const defaultPrefs = createDefaultPreferences(defaultOverrides);
+    
+    // Store in preferences store
+    preferencesStore[userId] = defaultPrefs;
+    
+    // Persist to file
+    savePreferences();
+    
+    console.log(`Default preferences created and saved for: ${userId}`);
+  }
+  
+  // If user is deleted and we're not including deleted users, return null
+  if (preferencesStore[userId].isDeleted === true && !includeDeleted) {
+    return null;
+  }
+  
+  // Return existing (or newly created) preferences
+  return preferencesStore[userId];
 }
 
 /**

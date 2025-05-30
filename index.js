@@ -96,10 +96,10 @@ async function sendExampleNotifications() {
 // If this file is run directly, start the notification service
 if (require.main === module) {
   console.log('Starting notification service');
-  getUsersOptedInToChannel('email')
+  // getUsersOptedInToChannel('email')
   // toggleChannelPreference('tejal1@example.com');
   // initializeUserPreferences(['tejal1@example.com', 'tejal2@example.com'])
-  // getUserPreferences('tejal1@example.com')
+  getUserPreferences('tejal3@example.com')
   // updateExistingUserPreferences("tejal@example.com", {
   //   emailEnabled: false,
   //   smsEnabled: true
