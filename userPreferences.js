@@ -96,6 +96,7 @@ function createDefaultPreferences() {
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
     isDeleted: false,
+    preferredLanguage: "en"
   };
 }
 
@@ -112,6 +113,7 @@ function createDefaultPreferences(overrides = {}) {
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
     isDeleted: false,
+    preferredLanguage: "en",
     ...overrides
   };
 }
@@ -402,6 +404,32 @@ function updateExistingUserPreferences(userId, preferences) {
     console.error(error);
     return { error };
   }
+
+  // Validate language code if provided
+  if ('preferredLanguage' in preferences) {
+    if (typeof preferences.preferredLanguage !== 'string') {
+      const error = 'preferredLanguage must be a string';
+      console.error(error);
+      return { error };
+    }
+    
+    // Simple validation for language code format (e.g., "en", "fr", "es")
+    // Language codes are typically 2-3 characters, but we'll allow up to 5 for flexibility
+    if (!/^[a-zA-Z-]{2,5}$/.test(preferences.preferredLanguage)) {
+      const error = 'Invalid language code format. Expected format like "en", "fr", "es-MX"';
+      console.error(error);
+      return { error };
+    }
+  }
+  
+  // Make sure we have at least one valid preference field to update
+  if (!('emailEnabled' in preferences) && 
+      !('smsEnabled' in preferences) && 
+      !('preferredLanguage' in preferences)) {
+    const error = 'No valid preference fields provided. Must include emailEnabled, smsEnabled, and/or preferredLanguage.';
+    console.error(error);
+    return { error };
+  }
   
   // Create a new preferences object with only validated fields
   const updates = {};
@@ -564,7 +592,7 @@ function toggleChannelPreference(userId, channel) {
  * @param {string} channel - Notification channel ('email' or 'sms')
  * @returns {string[]} Array of user IDs who have opted in to the specified channel
  */
-function getUsersOptedInToChannel(channel) {
+function getUsersOptedInToChannel(channel, includeDeleted = false) {
   // Validate channel parameter
   if (!channel || typeof channel !== 'string') {
     console.error('Invalid channel parameter');
@@ -585,10 +613,21 @@ function getUsersOptedInToChannel(channel) {
   
   // Filter users who have opted in to the specified channel
   const optedInUsers = Object.entries(preferencesStore)
-    .filter(([userId, preferences]) => preferences[preferenceField] === true)
+    .filter(([userId, preferences]) => {
+      // Check if the user has opted in to this channel
+      const hasOptedIn = preferences[preferenceField] === true;
+      
+      // If we're not including deleted users, filter them out
+      if (!includeDeleted && preferences.isDeleted === true) {
+        return false;
+      }
+      
+      return hasOptedIn;
+    })
     .map(([userId]) => userId);
   
-  console.log(`Found ${optedInUsers.length} users opted in to ${normalizedChannel} notifications`);
+  console.log(`Found ${optedInUsers.length} active users opted in to ${normalizedChannel} notifications` +
+    (includeDeleted ? ' (including deleted users)' : ''));
   
   return optedInUsers;
 }
@@ -659,6 +698,50 @@ function getUserPreferences(userId, defaultOverrides = {}, includeDeleted = fals
 // Initialize preferences when the module is loaded
 initializePreferences();
 
+/**
+ * Get a list of user IDs with a specific preferred language
+ * 
+ * @param {string} languageCode - The language code to filter by (e.g., "en", "es", "fr")
+ * @param {boolean} [includeDeleted=false] - If true, will include users marked as deleted
+ * @returns {string[]} Array of user IDs with the specified preferred language
+ */
+function getUsersByLanguage(languageCode, includeDeleted = false) {
+  // Validate language code parameter
+  if (!languageCode || typeof languageCode !== 'string') {
+    console.error('Invalid language code parameter');
+    return [];
+  }
+
+  // Normalize language code to lowercase
+  const normalizedLanguage = languageCode.toLowerCase();
+  
+  // Simple validation for language code format
+  if (!/^[a-zA-Z-]{2,5}$/.test(normalizedLanguage)) {
+    console.error(`Invalid language code format: ${languageCode}. Expected format like "en", "fr", "es-MX".`);
+    return [];
+  }
+  
+  // Filter users who have the specified preferred language
+  const usersWithLanguage = Object.entries(preferencesStore)
+    .filter(([userId, preferences]) => {
+      // Check if the user has the specified preferred language
+      const hasLanguage = preferences.preferredLanguage === normalizedLanguage;
+      
+      // If we're not including deleted users, filter them out
+      if (!includeDeleted && preferences.isDeleted === true) {
+        return false;
+      }
+      
+      return hasLanguage;
+    })
+    .map(([userId]) => userId);
+  
+  console.log(`Found ${usersWithLanguage.length} active users with preferred language "${normalizedLanguage}"` +
+    (includeDeleted ? ' (including deleted users)' : ''));
+  
+  return usersWithLanguage;
+}
+
 // Export public API
 module.exports = {
   hasUserOptedIn,
@@ -673,5 +756,6 @@ module.exports = {
   getUserPreferences,
   initializeUserPreferences,
   toggleChannelPreference,
-  getUsersOptedInToChannel
+  getUsersOptedInToChannel,
+  getUsersByLanguage
 };
