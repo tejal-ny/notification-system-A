@@ -99,6 +99,22 @@ function createDefaultPreferences() {
 }
 
 /**
+ * Create default preferences object for a new user
+ * 
+ * @param {Object} [overrides={}] - Override default values
+ * @returns {Object} Default preferences object
+ */
+function createDefaultPreferences(overrides = {}) {
+  return {
+    emailEnabled: true,  // Default to opt-in for email
+    smsEnabled: false,   // Default to opt-out for SMS (requires explicit opt-in)
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    ...overrides
+  };
+}
+
+/**
  * Get preferences for a specific user
  * 
  * @param {string} userId - User ID or email
@@ -113,6 +129,44 @@ function getUserPreferences(userId) {
   
   // Return existing preferences or create default
   return preferencesStore[userId] || createDefaultPreferences();
+}
+
+/**
+ * Initialize a new user with both email and SMS notification preferences enabled
+ * 
+ * This function only creates the user if they don't already exist in the preferences store.
+ * 
+ * @param {string} userId - User ID or email 
+ * @returns {Object|null} The new user preferences or null if user already exists/invalid ID
+ */
+function initializeNewUserWithAllEnabled(userId) {
+  // Validate user ID
+  if (!isValidUserId(userId)) {
+    console.error(`Invalid user ID: ${userId}`);
+    return null;
+  }
+  
+  // Check if user already exists
+  if (preferencesStore[userId]) {
+    console.log(`User ${userId} already exists in preferences store. No changes made.`);
+    return null; // User already exists, don't overwrite
+  }
+  
+  // Create new user with both email and SMS enabled
+  const preferences = createDefaultPreferences({
+    emailEnabled: true,
+    smsEnabled: true
+  });
+  
+  // Store in the preferences object
+  preferencesStore[userId] = preferences;
+  
+  // Save to file
+  savePreferences();
+
+  console.log(`Successfully added and initialized new user: ${userId}`);
+  
+  return preferences;
 }
 
 /**
@@ -316,5 +370,6 @@ module.exports = {
   removeUserPreferences,
   getAllPreferences,
   importPreferences,
-  exportPreferences
+  exportPreferences,
+  initializeNewUserWithAllEnabled
 };

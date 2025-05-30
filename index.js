@@ -10,6 +10,7 @@ const notificationSystem = require('./notifications');
 const { dispatcher,dispatchNotification } = require('./dispatcher');
 const errorHandler = require('./error-handler');
 const logger = require('./logger');
+const initializeNewUserWithAllEnabled = require('./userPreferences').initializeNewUserWithAllEnabled;
 // Example function to demonstrate usage
 function sendNotification(type, recipient, message, options = {}) {
   if (!notifications[type]) {
@@ -88,9 +89,11 @@ async function sendExampleNotifications() {
 
 // If this file is run directly, start the notification service
 if (require.main === module) {
-  console.log('Starting notification service with examples...');
-  sendExampleNotifications()
-   console.log('Notification System initialized');
+  // console.log('Starting notification service with examples...');
+  console.log('Starting notification service');
+  // sendExampleNotifications()
+  initializeNewUserWithAllEnabled("tejal@example.com");
+  //  console.log('Notification System initialized');
   // console.log('Available notification types:', Object.keys(notifications));
   // Display configuration status
   // if (config.environment.isDevelopment) {
@@ -104,91 +107,91 @@ if (require.main === module) {
   // }
  
   // Example of using the new dispatcher
-  console.log('\nExample: Using the notification dispatcher');
+  // console.log('\nExample: Using the notification dispatcher');
 
     // Example: Email notification
-  dispatchNotification({
-    type: 'email',
-    recipient: 'example@example.com',
-    message: 'Hello from the notification dispatcher!',
-    options: {
-      subject: 'Test Email'
-    }
-  }).then(result => {
-    console.log('Email dispatch result:', result);
-  }).catch(error => {
-    console.error('Email dispatch error:', error.message);
-  });
+  // dispatchNotification({
+  //   type: 'email',
+  //   recipient: 'example@example.com',
+  //   message: 'Hello from the notification dispatcher!',
+  //   options: {
+  //     subject: 'Test Email'
+  //   }
+  // }).then(result => {
+  //   console.log('Email dispatch result:', result);
+  // }).catch(error => {
+  //   console.error('Email dispatch error:', error.message);
+  // });
 
   // Example: SMS notification
-  setTimeout(() => {
-    dispatchNotification({
-      type: 'sms',
-      recipient: '+15551234567',
-      message: 'Your verification code is 123456',
-    }).then(result => {
-      console.log('SMS dispatch result:', result);
-    }).catch(error => {
-      console.error('SMS dispatch error:', error.message);
-    });
-  }, 1000);
+  // setTimeout(() => {
+  //   dispatchNotification({
+  //     type: 'sms',
+  //     recipient: '+15551234567',
+  //     message: 'Your verification code is 123456',
+  //   }).then(result => {
+  //     console.log('SMS dispatch result:', result);
+  //   }).catch(error => {
+  //     console.error('SMS dispatch error:', error.message);
+  //   });
+  // }, 1000);
   
   // Example: Unsupported notification type
-  setTimeout(() => {
-    dispatchNotification({
-      type: 'invalid_type',
-      recipient: 'recipient',
-      message: 'This should fail gracefully',
-    }).then(result => {
-      console.log('Invalid type result:', result);
-    }).catch(error => {
-      console.error('Invalid type properly handled:', error.message);
-    });
-  }, 2000);
+  // setTimeout(() => {
+  //   dispatchNotification({
+  //     type: 'invalid_type',
+  //     recipient: 'recipient',
+  //     message: 'This should fail gracefully',
+  //   }).then(result => {
+  //     console.log('Invalid type result:', result);
+  //   }).catch(error => {
+  //     console.error('Invalid type properly handled:', error.message);
+  //   });
+  // }, 2000);
   // Example: Valid email
-  notificationSystem.send(
-    notificationSystem.types.EMAIL,
-    'recipient@example.com',
-    'This is the email body content.',
-    {
-      subject: 'Test Notification from Environment Variables',
-      from: 'sender@example.com'
-    }
-  ).then(result => {
-    console.log('Notification sent successfully:', result);
-  }).catch(error => {
-    console.error('Failed to send notification:', error);
-  });
+  // notificationSystem.send(
+  //   notificationSystem.types.EMAIL,
+  //   'recipient@example.com',
+  //   'This is the email body content.',
+  //   {
+  //     subject: 'Test Notification from Environment Variables',
+  //     from: 'sender@example.com'
+  //   }
+  // ).then(result => {
+  //   console.log('Notification sent successfully:', result);
+  // }).catch(error => {
+  //   console.error('Failed to send notification:', error);
+  // });
 
   // Example: Invalid email format
-  notificationSystem.send(
-    notificationSystem.types.EMAIL,
-    'invalid-email',
-    'This email should not be sent due to invalid recipient.',
-    { subject: 'Invalid Email Test' }
-  ).then(result => {
-    if (!result.success) {
-      console.log('As expected, validation failed:', result.message);
-    } else {
-      console.log('Unexpected success with invalid email');
-    }
-  }).catch(error => {
-    console.log('Validation caught the error:', error.message);
-  });
+  // notificationSystem.send(
+  //   notificationSystem.types.EMAIL,
+  //   'invalid-email',
+  //   'This email should not be sent due to invalid recipient.',
+  //   { subject: 'Invalid Email Test' }
+  // ).then(result => {
+  //   if (!result.success) {
+  //     console.log('As expected, validation failed:', result.message);
+  //   } else {
+  //     console.log('Unexpected success with invalid email');
+  //   }
+  // }).catch(error => {
+  //   console.log('Validation caught the error:', error.message);
+  // });
 
-  // Example: Empty subject
-  notificationSystem.send(
-    notificationSystem.types.EMAIL,
-    'recipient@example.com',
-    'Email with empty subject',
-    { subject: '' }
-  ).then(result => {
-    if (!result.success) {
-      console.log('Subject validation failed as expected:', result.message);
-    } else {
-      console.log('Result:', result);
-    }
-  }).catch(error => {
-    console.log('Subject validation error:', error.message);
-  });
+  // // Example: Empty subject
+  // notificationSystem.send(
+  //   notificationSystem.types.EMAIL,
+  //   'recipient@example.com',
+  //   'Email with empty subject',
+  //   { subject: '' }
+  // ).then(result => {
+  //   if (!result.success) {
+  //     console.log('Subject validation failed as expected:', result.message);
+  //   } else {
+  //     console.log('Result:', result);
+  //   }
+  // }).catch(error => {
+  //   console.log('Subject validation error:', error.message);
+  // });
 }

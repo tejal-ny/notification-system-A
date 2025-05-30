@@ -34,6 +34,17 @@ console.log(userPreferences.getAllPreferences());
 console.log('\n--- Removing User Preferences ---');
 userPreferences.removeUserPreferences('temp-user@example.com');
 
+// Example usage: Initialize a new user with all channels enabled
+console.log('\n--- Initializing New User with All Channels Enabled ---');
+const newUser = 'new.user@example.com';
+const initResult = userPreferences.initializeNewUserWithAllEnabled(newUser);
+console.log(`New user ${newUser} initialized:`, initResult);
+
+// Try initializing the same user again (should not overwrite)
+console.log('\n--- Attempting to Re-Initialize Existing User ---');
+const retryResult = userPreferences.initializeNewUserWithAllEnabled(newUser);
+console.log('Result of re-initialization attempt:', retryResult);
+
 // Example usage: Export preferences to a custom file
 console.log('\n--- Exporting Preferences ---');
 const exportSuccess = userPreferences.exportPreferences('data/preferences-backup.json');
