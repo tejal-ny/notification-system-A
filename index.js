@@ -100,40 +100,19 @@ async function sendExampleNotifications() {
 // If this file is run directly, start the notification service
 if (require.main === module) {
   const userData = {
-    userName: "Maria García",
+    userName: "John Smith",
     serviceName: "CloudApp",
     verificationLink: "https://cloudapp.com/verify?token=abc123",
     supportEmail: "support@cloudapp.com"
   };
-  
-  // Render a welcome email in Spanish
-  const spanishEmail = renderTemplateByLanguage(
+  const japaneseEmail = renderTemplateByLanguage(
     notificationTemplates, 
     'email',
     'welcome',
-    'es',  // Spanish language code
+    'ja',
     userData
   );
-  
-  console.log(spanishEmail.subject);
-  console.log(spanishEmail.body);
-  
-  // Render an SMS verification message in French
-  const smsData = {
-    serviceName: "CloudApp",
-    verificationCode: "123456",
-    expiryTime: "15"
-  };
-  
-  const frenchSMS = renderTemplateByLanguage(
-    notificationTemplates,
-    'sms',
-    'verification',
-    'fr',
-    smsData
-  );
-  
-  console.log(frenchSMS); 
+  console.log("Japanese fallback to English:", japaneseEmail.subject);
 
   // getUsersByLanguage('en')
   // getUsersOptedInToChannel('email')

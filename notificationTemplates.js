@@ -94,55 +94,119 @@ const notificationTemplates = {
 
 
 /**
- * Renders a template by language, replacing placeholders with values from a data object
+ * Renders a template by language with enhanced fallback logic
  * 
  * @param {Object} templates - The templates object containing multi-language templates
  * @param {string} channel - The notification channel ('email' or 'sms')
  * @param {string} templateName - The name of the template to use
  * @param {string} language - The language code to use (e.g., 'en', 'es', 'fr', 'de')
  * @param {Object} data - An object containing key-value pairs for replacement
- * @param {string} [fallbackLanguage='en'] - Fallback language if requested language is not available
- * @returns {string|Object} The rendered template with all placeholders replaced
+ * @param {Object} [options] - Additional options
+ * @param {boolean} [options.logWarnings=true] - Whether to log warnings for missing values
+ * @param {string} [options.fallbackLanguage='en'] - Primary fallback language
+ * @param {boolean} [options.returnEmptyOnMissing=false] - Whether to return empty string on missing template
+ * @returns {string|Object|null} The rendered template with all placeholders replaced
  */
-function renderTemplateByLanguage(templates, channel, templateName, language, data, fallbackLanguage = 'en') {
-    // Check if inputs are valid
+function renderTemplateByLanguage(templates, channel, templateName, language, data, options = {}) {
+    // Default options
+    const {
+      logWarnings = true,
+      fallbackLanguage = 'en',
+      returnEmptyOnMissing = false
+    } = options;
+    
+    // Validation checks
     if (!templates || !channel || !templateName || !language || !data) {
-      throw new Error('Missing required parameters');
+      throw new Error('Missing required parameters for template rendering');
     }
     
     // Check if the channel exists
     if (!templates[channel]) {
-      throw new Error(`Channel "${channel}" not found in templates`);
+      const errorMsg = `Channel "${channel}" not found in templates`;
+      if (logWarnings) console.warn(errorMsg);
+      return returnEmptyOnMissing ? (typeof templates.email?.welcome?.en === 'object' ? {} : '') : null;
     }
     
     // Check if the template exists
     if (!templates[channel][templateName]) {
-      throw new Error(`Template "${templateName}" not found in channel "${channel}"`);
+      const errorMsg = `Template "${templateName}" not found in channel "${channel}"`;
+      if (logWarnings) console.warn(errorMsg);
+      return returnEmptyOnMissing ? (typeof templates[channel]?.welcome?.[language] === 'object' ? {} : '') : null;
     }
     
-    // Get the template in the requested language or fallback to the default language
-    const template = templates[channel][templateName][language] || 
-                     templates[channel][templateName][fallbackLanguage];
+    // ENHANCED FALLBACK LOGIC:
     
-    // If no template is found even with fallback, throw an error
-    if (!template) {
-      throw new Error(`No template found for "${templateName}" in channel "${channel}" with language "${language}" or fallback "${fallbackLanguage}"`);
-    }
+    // Step 1: Try to get the template in the requested language
+    let template = templates[channel][templateName][language];
+    let usedLanguage = language;
     
-    // If the template is an object (like email with subject and body)
-    if (typeof template === 'object') {
-      const result = {};
-      // Render each property of the template object
-      for (const key in template) {
-        if (Object.prototype.hasOwnProperty.call(template, key)) {
-          result[key] = renderTemplate(template[key], data);
-        }
+    // Step 2: If not found, attempt to fall back to the specified fallback language
+    if (!template && language !== fallbackLanguage) {
+      template = templates[channel][templateName][fallbackLanguage];
+      usedLanguage = fallbackLanguage;
+      
+      if (template && logWarnings) {
+        console.warn(`Template "${templateName}" not available in "${language}", falling back to "${fallbackLanguage}"`);
       }
-      return result;
     }
     
-    // If the template is a string (like SMS)
-    return renderTemplate(template, data);
+    // Step 3: If still not found, look for any available language as a last resort
+    if (!template) {
+      const availableLanguages = Object.keys(templates[channel][templateName]);
+      
+      if (availableLanguages.length > 0) {
+        usedLanguage = availableLanguages[0];
+        template = templates[channel][templateName][usedLanguage];
+        
+        if (logWarnings) {
+          console.warn(`Template "${templateName}" not available in "${language}" or fallback "${fallbackLanguage}". Using "${usedLanguage}" as last resort.`);
+        }
+      } else {
+        // No languages available at all
+        const errorMsg = `No languages available for template "${templateName}" in channel "${channel}"`;
+        if (logWarnings) console.warn(errorMsg);
+        
+        return returnEmptyOnMissing ? 
+          (channel === 'email' ? { subject: '', body: '' } : '') : 
+          null;
+      }
+    }
+    
+    // If no template is found after all fallback attempts
+    if (!template) {
+      const errorMsg = `No template found for "${templateName}" in channel "${channel}" with language "${language}" or any fallback`;
+      if (logWarnings) console.warn(errorMsg);
+      
+      return returnEmptyOnMissing ? 
+        (channel === 'email' ? { subject: '', body: '' } : '') : 
+        null;
+    }
+    
+    // Handle template based on its type
+    try {
+      // If the template is an object (like email with subject and body)
+      if (typeof template === 'object') {
+        const result = {};
+        // Render each property of the template object
+        for (const key in template) {
+          if (Object.prototype.hasOwnProperty.call(template, key)) {
+            result[key] = renderTemplate(template[key], data, logWarnings);
+          }
+        }
+        return result;
+      }
+      
+      // If the template is a string (like SMS)
+      return renderTemplate(template, data, logWarnings);
+    } catch (error) {
+      if (logWarnings) {
+        console.warn(`Error rendering template "${templateName}" in language "${usedLanguage}": ${error.message}`);
+      }
+      
+      return returnEmptyOnMissing ? 
+        (typeof template === 'object' ? { subject: '', body: '' } : '') : 
+        null;
+    }
   }
   
   /**
