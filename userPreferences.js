@@ -115,23 +115,6 @@ function createDefaultPreferences(overrides = {}) {
 }
 
 /**
- * Get preferences for a specific user
- * 
- * @param {string} userId - User ID or email
- * @returns {Object|null} User preferences or null if invalid userId
- */
-function getUserPreferences(userId) {
-  // Validate user ID
-  if (!isValidUserId(userId)) {
-    console.error(`Invalid user ID: ${userId}`);
-    return null;
-  }
-  
-  // Return existing preferences or create default
-  return preferencesStore[userId] || createDefaultPreferences();
-}
-
-/**
  * Initialize a new user with both email and SMS notification preferences enabled
  * 
  * This function only creates the user if they don't already exist in the preferences store.
@@ -447,6 +430,47 @@ function updateExistingUserPreferences(userId, preferences) {
 }
 
 /**
+ * Get preferences for a specific user, creating default preferences if user doesn't exist
+ * 
+ * If the user doesn't exist in the preferences data, this function will automatically
+ * initialize them with default preferences and persist this to the JSON file.
+ * 
+ * @param {string} userId - User ID or email
+ * @param {Object} [defaultOverrides={}] - Override default values if creating new user
+ * @returns {Object|null} User preferences or null if invalid userId
+ */
+function getUserPreferences(userId, defaultOverrides = {}) {
+  // Validate user ID
+  if (!isValidUserId(userId)) {
+    console.error(`Invalid user ID: ${userId}`);
+    return null;
+  }
+  
+  // Check if user exists in the preferences store
+  if (!preferencesStore[userId]) {
+    // User doesn't exist - create default preferences
+    console.log(`Creating default preferences for new user: ${userId}`);
+    
+    // Create default preferences with any overrides
+    const defaultPrefs = createDefaultPreferences(defaultOverrides);
+    
+    // Store in preferences store
+    preferencesStore[userId] = defaultPrefs;
+    
+    // Persist to file
+    savePreferences();
+    
+    console.log(`Default preferences created and saved for: ${userId}`);
+  }
+
+  console.log(`User Preference for email: ${preferencesStore[userId].emailEnabled}`);
+  console.log(`User Preference for sms: ${preferencesStore[userId].smsEnabled}`);
+
+  // Return existing (or newly created) preferences
+  return preferencesStore[userId];
+}
+
+/**
  * Initialize a new user with both email and SMS notification preferences enabled
  * 
  * This function only creates the user if they don't already exist in the preferences store.
@@ -460,7 +484,6 @@ initializePreferences();
 
 // Export public API
 module.exports = {
-  getUserPreferences,
   hasUserOptedIn,
   updateUserPreferences,
   setChannelOptInStatus,
@@ -469,5 +492,6 @@ module.exports = {
   importPreferences,
   exportPreferences,
   initializeNewUserWithAllEnabled,
-  updateExistingUserPreferences
+  updateExistingUserPreferences,
+  getUserPreferences
 };

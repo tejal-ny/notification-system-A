@@ -12,6 +12,7 @@ const errorHandler = require('./error-handler');
 const logger = require('./logger');
 const initializeNewUserWithAllEnabled = require('./userPreferences').initializeNewUserWithAllEnabled;
 const updateExistingUserPreferences = require('./userPreferences').updateExistingUserPreferences;
+const getUserPreferences = require('./userPreferences').getUserPreferences;
 // Example function to demonstrate usage
 function sendNotification(type, recipient, message, options = {}) {
   if (!notifications[type]) {
@@ -91,10 +92,11 @@ async function sendExampleNotifications() {
 // If this file is run directly, start the notification service
 if (require.main === module) {
   console.log('Starting notification service');
-  updateExistingUserPreferences("tejal@example.com", {
-    emailEnabled: false,
-    smsEnabled: true
-  });
+  getUserPreferences('tejal1@example.com')
+  // updateExistingUserPreferences("tejal@example.com", {
+  //   emailEnabled: false,
+  //   smsEnabled: true
+  // });
   //  console.log('Notification System initialized');
   // console.log('Available notification types:', Object.keys(notifications));
   // Display configuration status
