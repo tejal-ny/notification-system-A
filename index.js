@@ -19,6 +19,7 @@ const getUsersOptedInToChannel = require('./userPreferences').getUsersOptedInToC
 const getUsersByLanguage = require('./userPreferences').getUsersByLanguage;
 const renderTemplate = require('./notificationTemplates').renderTemplate;
 const notificationTemplates = require('./notificationTemplates').notificationTemplates;
+const renderTemplateByLanguage = require('./notificationTemplates').renderTemplateByLanguage;
 
 // Example function to demonstrate usage
 function sendNotification(type, recipient, message, options = {}) {
@@ -98,20 +99,41 @@ async function sendExampleNotifications() {
 
 // If this file is run directly, start the notification service
 if (require.main === module) {
-  console.log('Starting notification service');
-  const data = {
-    // userName: "Jane Doe",
-    companyName: "DevHub"
+  const userData = {
+    userName: "Maria García",
+    serviceName: "CloudApp",
+    verificationLink: "https://cloudapp.com/verify?token=abc123",
+    supportEmail: "support@cloudapp.com"
   };
-  const emailSubject = renderTemplate(notificationTemplates.email.welcome.subject, data);
-  const emailBody = renderTemplate(notificationTemplates.email.welcome.body, data);
-
-  console.log("emailSubject:", emailSubject);
-  console.log("emailBody:", emailBody);
-
-  const smsMessage = renderTemplate(notificationTemplates.sms.welcome.body, data);
-
-  console.log("smsMessage:", smsMessage);
+  
+  // Render a welcome email in Spanish
+  const spanishEmail = renderTemplateByLanguage(
+    notificationTemplates, 
+    'email',
+    'welcome',
+    'es',  // Spanish language code
+    userData
+  );
+  
+  console.log(spanishEmail.subject);
+  console.log(spanishEmail.body);
+  
+  // Render an SMS verification message in French
+  const smsData = {
+    serviceName: "CloudApp",
+    verificationCode: "123456",
+    expiryTime: "15"
+  };
+  
+  const frenchSMS = renderTemplateByLanguage(
+    notificationTemplates,
+    'sms',
+    'verification',
+    'fr',
+    smsData
+  );
+  
+  console.log(frenchSMS); 
 
   // getUsersByLanguage('en')
   // getUsersOptedInToChannel('email')
