@@ -598,6 +598,41 @@ function toggleChannelPreference(userId, channel) {
 }
 
 /**
+ * Get a list of user IDs who have opted in to a specific notification channel
+ * 
+ * @param {string} channel - Notification channel ('email' or 'sms')
+ * @returns {string[]} Array of user IDs who have opted in to the specified channel
+ */
+function getUsersOptedInToChannel(channel) {
+  // Validate channel parameter
+  if (!channel || typeof channel !== 'string') {
+    console.error('Invalid channel parameter');
+    return [];
+  }
+
+  // Normalize channel name to lowercase
+  const normalizedChannel = channel.toLowerCase();
+  
+  // Validate that channel is supported
+  if (normalizedChannel !== 'email' && normalizedChannel !== 'sms') {
+    console.error(`Unsupported notification channel: ${channel}`);
+    return [];
+  }
+
+  // Determine which preference field to check
+  const preferenceField = normalizedChannel === 'email' ? 'emailEnabled' : 'smsEnabled';
+  
+  // Filter users who have opted in to the specified channel
+  const optedInUsers = Object.entries(preferencesStore)
+    .filter(([userId, preferences]) => preferences[preferenceField] === true)
+    .map(([userId]) => userId);
+  
+  console.log(`Found ${optedInUsers.length} users opted in to ${normalizedChannel} notifications`);
+  
+  return optedInUsers;
+}
+
+/**
  * Initialize a new user with both email and SMS notification preferences enabled
  * 
  * This function only creates the user if they don't already exist in the preferences store.
@@ -622,5 +657,6 @@ module.exports = {
   updateExistingUserPreferences,
   getUserPreferences,
   initializeUserPreferences,
-  toggleChannelPreference
+  toggleChannelPreference,
+  getUsersOptedInToChannel
 };

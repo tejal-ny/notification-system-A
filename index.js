@@ -15,6 +15,7 @@ const updateExistingUserPreferences = require('./userPreferences').updateExistin
 const getUserPreferences = require('./userPreferences').getUserPreferences;
 const initializeUserPreferences = require('./userPreferences').initializeUserPreferences;
 const toggleChannelPreference = require('./userPreferences').toggleChannelPreference;
+const getUsersOptedInToChannel = require('./userPreferences').getUsersOptedInToChannel;
 
 // Example function to demonstrate usage
 function sendNotification(type, recipient, message, options = {}) {
@@ -95,7 +96,8 @@ async function sendExampleNotifications() {
 // If this file is run directly, start the notification service
 if (require.main === module) {
   console.log('Starting notification service');
-  toggleChannelPreference('tejal1@example.com');
+  getUsersOptedInToChannel('email')
+  // toggleChannelPreference('tejal1@example.com');
   // initializeUserPreferences(['tejal1@example.com', 'tejal2@example.com'])
   // getUserPreferences('tejal1@example.com')
   // updateExistingUserPreferences("tejal@example.com", {
