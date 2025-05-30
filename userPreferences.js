@@ -359,52 +359,75 @@ function exportPreferences(filePath = null) {
 }
 
 /**
- * Update preferences for an existing user only
+ * Update preferences for an existing user only with strict validation
  * 
  * Unlike updateUserPreferences, this function will not create a new user
- * if they don't exist. It only updates existing users.
+ * if they don't exist. It only updates existing users and enforces strict
+ * data type validation.
  * 
  * @param {string} userId - User ID or email
  * @param {Object} preferences - Object containing preferences to update
  * @param {boolean} [preferences.emailEnabled] - Whether email notifications are enabled
  * @param {boolean} [preferences.smsEnabled] - Whether SMS notifications are enabled
- * @returns {Object|null} - Updated preferences or null if user doesn't exist or invalid input
+ * @returns {Object|{error: string}} - Updated preferences or error object with description
  */
 function updateExistingUserPreferences(userId, preferences) {
   // Validate user ID
   if (!isValidUserId(userId)) {
-    console.error(`Invalid user ID: ${userId}`);
-    return null;
+    const error = `Invalid user ID: ${userId}`;
+    console.error(error);
+    return { error };
   }
   
   // Validate preferences object
   if (!preferences || typeof preferences !== 'object') {
-    console.error('Preferences must be an object');
-    return null;
+    const error = 'Preferences must be a valid object';
+    console.error(error);
+    return { error };
   }
   
   // Check if user exists
   if (!preferencesStore[userId]) {
-    console.error(`User ${userId} not found in preferences store`);
-    return null;
+    const error = `User ${userId} not found in preferences store`;
+    console.error(error);
+    return { error };
   }
   
-  // Create a new preferences object with only valid fields
+  // Validate email preference if provided
+  if ('emailEnabled' in preferences) {
+    if (typeof preferences.emailEnabled !== 'boolean') {
+      const error = `Invalid emailEnabled value: ${preferences.emailEnabled}. Must be a boolean.`;
+      console.error(error);
+      return { error };
+    }
+  }
+  
+  // Validate SMS preference if provided
+  if ('smsEnabled' in preferences) {
+    if (typeof preferences.smsEnabled !== 'boolean') {
+      const error = `Invalid smsEnabled value: ${preferences.smsEnabled}. Must be a boolean.`;
+      console.error(error);
+      return { error };
+    }
+  }
+  
+  // If no preference fields provided, return error
+  if (!('emailEnabled' in preferences) && !('smsEnabled' in preferences)) {
+    const error = 'No preference fields provided. Must include emailEnabled and/or smsEnabled.';
+    console.error(error);
+    return { error };
+  }
+  
+  // Create a new preferences object with only validated fields
   const updates = {};
   
   // Only include valid preference fields
-  if (typeof preferences.emailEnabled === 'boolean') {
+  if ('emailEnabled' in preferences) {
     updates.emailEnabled = preferences.emailEnabled;
   }
   
-  if (typeof preferences.smsEnabled === 'boolean') {
+  if ('smsEnabled' in preferences) {
     updates.smsEnabled = preferences.smsEnabled;
-  }
-  
-  // If no valid updates, return null
-  if (Object.keys(updates).length === 0) {
-    console.error('No valid preference fields provided');
-    return null;
   }
   
   // Update the user's preferences

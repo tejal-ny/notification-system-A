@@ -90,10 +90,7 @@ async function sendExampleNotifications() {
 
 // If this file is run directly, start the notification service
 if (require.main === module) {
-  // console.log('Starting notification service with examples...');
   console.log('Starting notification service');
-  // sendExampleNotifications()
-  // initializeNewUserWithAllEnabled("tejal@example.com");
   updateExistingUserPreferences("tejal@example.com", {
     emailEnabled: false,
     smsEnabled: true

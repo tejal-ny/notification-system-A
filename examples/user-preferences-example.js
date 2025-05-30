@@ -72,3 +72,44 @@ const multiUpdate = userPreferences.updateExistingUserPreferences(
   { emailEnabled: true, smsEnabled: true }
 );
 console.log('Multiple preferences update result:', multiUpdate);
+
+// Example usage: Update existing user's preferences with enhanced validation
+console.log('\n--- Updating Existing User\'s Preferences (With Enhanced Validation) ---');
+
+// Try updating with invalid data types
+console.log('\n--- Testing Validation with Invalid Data Types ---');
+
+// String instead of boolean
+const invalidTypeUpdate = userPreferences.updateExistingUserPreferences(
+  newUser, 
+  { emailEnabled: "true" }  // String instead of boolean
+);
+console.log('Invalid data type update result:', invalidTypeUpdate);
+
+// Update with undefined values
+const noFieldsUpdate = userPreferences.updateExistingUserPreferences(
+  newUser, 
+  { otherField: true }  // No valid preference fields
+);
+console.log('No valid fields update result:', noFieldsUpdate);
+
+// Now update with valid data
+console.log('\n--- Updates with Valid Data ---');
+
+// Single field update
+const singleFieldUpdate = userPreferences.updateExistingUserPreferences(
+  newUser, 
+  { smsEnabled: false }
+);
+console.log('Single field update result:', 
+  'error' in singleFieldUpdate ? singleFieldUpdate.error : 'Success!');
+console.log('Updated preferences:', singleFieldUpdate);
+
+// Multiple fields update
+const multiFieldUpdate = userPreferences.updateExistingUserPreferences(
+  'jane.doe@example.com',
+  { emailEnabled: true, smsEnabled: true }
+);
+console.log('Multiple fields update result:', 
+  'error' in multiFieldUpdate ? multiFieldUpdate.error : 'Success!');
+console.log('Updated preferences:', multiFieldUpdate);
