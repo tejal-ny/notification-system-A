@@ -100,7 +100,7 @@ async function sendExampleNotifications() {
 if (require.main === module) {
   console.log('Starting notification service');
   const data = {
-    userName: "Jane Doe",
+    // userName: "Jane Doe",
     companyName: "DevHub"
   };
   const emailSubject = renderTemplate(notificationTemplates.email.welcome.subject, data);
