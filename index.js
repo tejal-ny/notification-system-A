@@ -13,6 +13,8 @@ const logger = require('./logger');
 const initializeNewUserWithAllEnabled = require('./userPreferences').initializeNewUserWithAllEnabled;
 const updateExistingUserPreferences = require('./userPreferences').updateExistingUserPreferences;
 const getUserPreferences = require('./userPreferences').getUserPreferences;
+const initializeUserPreferences = require('./userPreferences').initializeUserPreferences;
+
 // Example function to demonstrate usage
 function sendNotification(type, recipient, message, options = {}) {
   if (!notifications[type]) {
@@ -92,7 +94,8 @@ async function sendExampleNotifications() {
 // If this file is run directly, start the notification service
 if (require.main === module) {
   console.log('Starting notification service');
-  getUserPreferences('tejal1@example.com')
+  initializeUserPreferences(['tejal1@example.com', 'tejal2@example.com'])
+  // getUserPreferences('tejal1@example.com')
   // updateExistingUserPreferences("tejal@example.com", {
   //   emailEnabled: false,
   //   smsEnabled: true

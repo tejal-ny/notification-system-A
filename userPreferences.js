@@ -471,6 +471,76 @@ function getUserPreferences(userId, defaultOverrides = {}) {
 }
 
 /**
+ * Initialize default preferences for multiple users
+ * 
+ * This function takes an array of user IDs and creates default preferences
+ * for each user that doesn't already exist in the preferences store.
+ * It skips users who already have preferences.
+ * 
+ * @param {string[]} userIds - Array of user IDs or emails
+ * @param {Object} [defaultOverrides={}] - Override default values if creating new users
+ * @returns {Object} Stats object with counts of processed users
+ */
+function initializeUserPreferences(userIds, defaultOverrides = {}) {
+  // Validate input
+  if (!Array.isArray(userIds)) {
+    console.error('User IDs must be provided as an array');
+    return { 
+      success: false, 
+      totalUsers: 0,
+      newUsers: 0,
+      skippedUsers: 0,
+      invalidUsers: 0 
+    };
+  }
+
+  // Stats to return
+  const stats = {
+    success: true,
+    totalUsers: userIds.length,
+    newUsers: 0,
+    skippedUsers: 0,
+    invalidUsers: 0
+  };
+
+  // Process each user ID
+  for (const userId of userIds) {
+    // Validate the user ID
+    if (!isValidUserId(userId)) {
+      console.error(`Skipping invalid user ID: ${userId}`);
+      stats.invalidUsers++;
+      continue;
+    }
+    
+    // Check if user already exists in preferences store
+    if (preferencesStore[userId]) {
+      console.log(`User ${userId} already has preferences, skipping`);
+      stats.skippedUsers++;
+      continue;
+    }
+    
+    // User doesn't exist - create default preferences
+    console.log(`Creating default preferences for new user: ${userId}`);
+    
+    // Create default preferences with any overrides
+    const defaultPrefs = createDefaultPreferences(defaultOverrides);
+    
+    // Store in preferences store
+    preferencesStore[userId] = defaultPrefs;
+    
+    stats.newUsers++;
+  }
+  
+  // Save the updated preferences to file
+  if (stats.newUsers > 0) {
+    savePreferences();
+    console.log(`Default preferences created for ${stats.newUsers} new users`);
+  }
+  
+  return stats;
+}
+
+/**
  * Initialize a new user with both email and SMS notification preferences enabled
  * 
  * This function only creates the user if they don't already exist in the preferences store.
@@ -493,5 +563,6 @@ module.exports = {
   exportPreferences,
   initializeNewUserWithAllEnabled,
   updateExistingUserPreferences,
-  getUserPreferences
+  getUserPreferences,
+  initializeUserPreferences
 };
