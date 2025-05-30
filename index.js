@@ -20,7 +20,7 @@ const getUsersByLanguage = require('./userPreferences').getUsersByLanguage;
 const renderTemplate = require('./notificationTemplates').renderTemplate;
 const notificationTemplates = require('./notificationTemplates').notificationTemplates;
 const renderTemplateByLanguage = require('./notificationTemplates').renderTemplateByLanguage;
-
+const templateManager = require('./templateManager');
 // Example function to demonstrate usage
 function sendNotification(type, recipient, message, options = {}) {
   if (!notifications[type]) {
@@ -99,20 +99,35 @@ async function sendExampleNotifications() {
 
 // If this file is run directly, start the notification service
 if (require.main === module) {
-  const userData = {
-    userName: "John Smith",
-    serviceName: "CloudApp",
-    verificationLink: "https://cloudapp.com/verify?token=abc123",
-    supportEmail: "support@cloudapp.com"
-  };
-  const japaneseEmail = renderTemplateByLanguage(
-    notificationTemplates, 
-    'email',
-    'welcome',
-    'ja',
-    userData
-  );
-  console.log("Japanese fallback to English:", japaneseEmail.subject);
+  console.log('EXAMPLE: RETRIEVING TEMPLATES');
+  console.log('---------------------------------');
+  
+  // Retrieve an email template in English
+  const welcomeEmailEn = templateManager.getTemplate('email', 'welcome', 'en');
+  console.log('English Welcome Email:');
+  console.log('Subject:', welcomeEmailEn.subject);
+  console.log('Body Preview:', welcomeEmailEn.body.substring(0, 50) + '...');
+  console.log();
+  
+  // Retrieve an email template in Spanish
+  const welcomeEmailEs = templateManager.getTemplate('email', 'welcome', 'es');
+  console.log('Spanish Welcome Email:');
+  console.log('Subject:', welcomeEmailEs.subject);
+  console.log('Body Preview:', welcomeEmailEs.body.substring(0, 50) + '...');
+  console.log();
+  
+  // Retrieve an SMS template in French
+  const otpSmsTemplate = templateManager.getTemplate('sms', 'otp', 'fr');
+  console.log('French OTP SMS:');
+  console.log('Message:', otpSmsTemplate);
+  console.log();
+  
+  // Example with fallback - trying to get a template in an unsupported language
+  // It will fall back to English
+  const welcomeSmsJa = templateManager.getTemplate('sms', 'welcome', 'ja', 'en');
+  console.log('Japanese (fallback to English) Welcome SMS:');
+  console.log('Message:', welcomeSmsJa);
+  console.log();
 
   // getUsersByLanguage('en')
   // getUsersOptedInToChannel('email')
