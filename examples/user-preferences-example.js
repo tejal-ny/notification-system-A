@@ -49,3 +49,26 @@ console.log('Result of re-initialization attempt:', retryResult);
 console.log('\n--- Exporting Preferences ---');
 const exportSuccess = userPreferences.exportPreferences('data/preferences-backup.json');
 console.log('Export successful?', exportSuccess);
+
+// Example usage: Update existing user's preferences
+console.log('\n--- Updating Existing User\'s Preferences ---');
+// First let's try to update a non-existent user
+const nonExistentUpdate = userPreferences.updateExistingUserPreferences(
+  'non.existent@example.com', 
+  { emailEnabled: false }
+);
+console.log('Update non-existent user result:', nonExistentUpdate);
+
+// Now update an existing user
+const existingUpdate = userPreferences.updateExistingUserPreferences(
+  newUser, 
+  { smsEnabled: false }
+);
+console.log('Updated preferences for existing user:', existingUpdate);
+
+// Update with multiple values
+const multiUpdate = userPreferences.updateExistingUserPreferences(
+  'jane.doe@example.com',
+  { emailEnabled: true, smsEnabled: true }
+);
+console.log('Multiple preferences update result:', multiUpdate);

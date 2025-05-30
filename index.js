@@ -11,6 +11,7 @@ const { dispatcher,dispatchNotification } = require('./dispatcher');
 const errorHandler = require('./error-handler');
 const logger = require('./logger');
 const initializeNewUserWithAllEnabled = require('./userPreferences').initializeNewUserWithAllEnabled;
+const updateExistingUserPreferences = require('./userPreferences').updateExistingUserPreferences;
 // Example function to demonstrate usage
 function sendNotification(type, recipient, message, options = {}) {
   if (!notifications[type]) {
@@ -92,7 +93,11 @@ if (require.main === module) {
   // console.log('Starting notification service with examples...');
   console.log('Starting notification service');
   // sendExampleNotifications()
-  initializeNewUserWithAllEnabled("tejal@example.com");
+  // initializeNewUserWithAllEnabled("tejal@example.com");
+  updateExistingUserPreferences("tejal@example.com", {
+    emailEnabled: false,
+    smsEnabled: true
+  });
   //  console.log('Notification System initialized');
   // console.log('Available notification types:', Object.keys(notifications));
   // Display configuration status

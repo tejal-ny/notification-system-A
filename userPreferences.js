@@ -358,6 +358,80 @@ function exportPreferences(filePath = null) {
   }
 }
 
+/**
+ * Update preferences for an existing user only
+ * 
+ * Unlike updateUserPreferences, this function will not create a new user
+ * if they don't exist. It only updates existing users.
+ * 
+ * @param {string} userId - User ID or email
+ * @param {Object} preferences - Object containing preferences to update
+ * @param {boolean} [preferences.emailEnabled] - Whether email notifications are enabled
+ * @param {boolean} [preferences.smsEnabled] - Whether SMS notifications are enabled
+ * @returns {Object|null} - Updated preferences or null if user doesn't exist or invalid input
+ */
+function updateExistingUserPreferences(userId, preferences) {
+  // Validate user ID
+  if (!isValidUserId(userId)) {
+    console.error(`Invalid user ID: ${userId}`);
+    return null;
+  }
+  
+  // Validate preferences object
+  if (!preferences || typeof preferences !== 'object') {
+    console.error('Preferences must be an object');
+    return null;
+  }
+  
+  // Check if user exists
+  if (!preferencesStore[userId]) {
+    console.error(`User ${userId} not found in preferences store`);
+    return null;
+  }
+  
+  // Create a new preferences object with only valid fields
+  const updates = {};
+  
+  // Only include valid preference fields
+  if (typeof preferences.emailEnabled === 'boolean') {
+    updates.emailEnabled = preferences.emailEnabled;
+  }
+  
+  if (typeof preferences.smsEnabled === 'boolean') {
+    updates.smsEnabled = preferences.smsEnabled;
+  }
+  
+  // If no valid updates, return null
+  if (Object.keys(updates).length === 0) {
+    console.error('No valid preference fields provided');
+    return null;
+  }
+  
+  // Update the user's preferences
+  const updatedPrefs = {
+    ...preferencesStore[userId],
+    ...updates,
+    updatedAt: new Date().toISOString()
+  };
+  
+  // Store updated preferences
+  preferencesStore[userId] = updatedPrefs;
+  
+  // Persist to file
+  savePreferences();
+  
+  return updatedPrefs;
+}
+
+/**
+ * Initialize a new user with both email and SMS notification preferences enabled
+ * 
+ * This function only creates the user if they don't already exist in the preferences store.
+ * 
+ * @param {string} userId - User ID or email 
+ * @returns {Object|null} The new user preferences or null if user already exists/invalid ID
+ */
+
 // Initialize preferences when the module is loaded
 initializePreferences();
 
@@ -371,5 +445,6 @@ module.exports = {
   getAllPreferences,
   importPreferences,
   exportPreferences,
-  initializeNewUserWithAllEnabled
+  initializeNewUserWithAllEnabled,
+  updateExistingUserPreferences
 };
