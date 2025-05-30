@@ -30,10 +30,10 @@
     "updatedAt": "2025-05-30T06:00:20.677Z"
   },
   "tejal1@example.com": {
-    "emailEnabled": true,
+    "emailEnabled": false,
     "smsEnabled": false,
     "createdAt": "2025-05-30T06:17:42.102Z",
-    "updatedAt": "2025-05-30T06:17:42.112Z"
+    "updatedAt": "2025-05-30T06:44:26.159Z"
   },
   "tejal2@example.com": {
     "emailEnabled": true,

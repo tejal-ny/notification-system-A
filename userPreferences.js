@@ -541,6 +541,63 @@ function initializeUserPreferences(userIds, defaultOverrides = {}) {
 }
 
 /**
+ * Toggle a user's notification preference for a specific channel
+ * 
+ * This function flips the current boolean value of the specified channel's preference,
+ * turning true to false or false to true. It also updates the updatedAt timestamp.
+ * 
+ * @param {string} userId - User ID or email
+ * @param {string} channel - Notification channel ('email' or 'sms')
+ * @returns {Object|null} Updated preferences object or null if failed
+ */
+function toggleChannelPreference(userId, channel) {
+  // Validate inputs
+  if (!isValidUserId(userId)) {
+    console.error(`Invalid user ID: ${userId}`);
+    return null;
+  }
+  
+  if (!channel) {
+    console.error('Channel must be specified');
+    return null;
+  }
+  
+  // Get current preferences (will create default if user doesn't exist)
+  const currentPrefs = getUserPreferences(userId);
+  if (!currentPrefs) {
+    console.error(`Could not get preferences for user: ${userId}`);
+    return null;
+  }
+  
+  // Prepare the update
+  const updates = {};
+  
+  // Determine which preference to toggle based on the channel
+  switch (channel.toLowerCase()) {
+    case 'email':
+      // Flip the current value
+      updates.emailEnabled = !currentPrefs.emailEnabled;
+      console.log(`Toggling email preference for ${userId} from ${currentPrefs.emailEnabled} to ${updates.emailEnabled}`);
+      break;
+      
+    case 'sms':
+      // Flip the current value
+      updates.smsEnabled = !currentPrefs.smsEnabled;
+      console.log(`Toggling SMS preference for ${userId} from ${currentPrefs.smsEnabled} to ${updates.smsEnabled}`);
+      break;
+      
+    default:
+      console.error(`Unknown notification channel: ${channel}`);
+      return null;
+  }
+  
+  // Update the preference and get the result
+  const updatedPrefs = updateUserPreferences(userId, updates);
+  
+  return updatedPrefs;
+}
+
+/**
  * Initialize a new user with both email and SMS notification preferences enabled
  * 
  * This function only creates the user if they don't already exist in the preferences store.
@@ -564,5 +621,6 @@ module.exports = {
   initializeNewUserWithAllEnabled,
   updateExistingUserPreferences,
   getUserPreferences,
-  initializeUserPreferences
+  initializeUserPreferences,
+  toggleChannelPreference
 };
