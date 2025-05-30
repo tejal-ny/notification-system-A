@@ -17,6 +17,8 @@ const initializeUserPreferences = require('./userPreferences').initializeUserPre
 const toggleChannelPreference = require('./userPreferences').toggleChannelPreference;
 const getUsersOptedInToChannel = require('./userPreferences').getUsersOptedInToChannel;
 const getUsersByLanguage = require('./userPreferences').getUsersByLanguage;
+const renderTemplate = require('./notificationTemplates').renderTemplate;
+const notificationTemplates = require('./notificationTemplates').notificationTemplates;
 
 // Example function to demonstrate usage
 function sendNotification(type, recipient, message, options = {}) {
@@ -97,7 +99,21 @@ async function sendExampleNotifications() {
 // If this file is run directly, start the notification service
 if (require.main === module) {
   console.log('Starting notification service');
-  getUsersByLanguage('en')
+  const data = {
+    userName: "Jane Doe",
+    companyName: "DevHub"
+  };
+  const emailSubject = renderTemplate(notificationTemplates.email.welcome.subject, data);
+  const emailBody = renderTemplate(notificationTemplates.email.welcome.body, data);
+
+  console.log("emailSubject:", emailSubject);
+  console.log("emailBody:", emailBody);
+
+  const smsMessage = renderTemplate(notificationTemplates.sms.welcome.body, data);
+
+  console.log("smsMessage:", smsMessage);
+
+  // getUsersByLanguage('en')
   // getUsersOptedInToChannel('email')
   // toggleChannelPreference('tejal1@example.com');
   // initializeUserPreferences(['tejal1@example.com', 'tejal2@example.com'])

@@ -61,6 +61,48 @@ const notificationTemplates = {
   };
   
   // Export the templates object if in Node.js environment
-  if (typeof module !== 'undefined' && module.exports) {
-    module.exports = notificationTemplates;
+//   if (typeof module !== 'undefined' && module.exports) {
+//     module.exports = notificationTemplates;
+//   }
+
+
+  /**
+ * Renders a template string by replacing placeholders with values from a data object
+ * 
+ * @param {string} template - The template string containing placeholders like {{key}}
+ * @param {object} data - An object containing key-value pairs for replacement
+ * @returns {string} The rendered template with all placeholders replaced
+ */
+function renderTemplate(template, data) {
+    // Start with the original template
+    let renderedTemplate = template;
+    
+    // Check if inputs are valid
+    if (typeof template !== 'string' || !data || typeof data !== 'object') {
+      throw new Error('Invalid arguments: template must be a string and data must be an object');
+    }
+    
+    // Replace each placeholder with its corresponding value from the data object
+    for (const key in data) {
+      // Only process properties directly on the object (not from prototype)
+      if (Object.prototype.hasOwnProperty.call(data, key)) {
+        // Create a regex to find all instances of the placeholder
+        const placeholder = new RegExp(`{{${key}}}`, 'g');
+        
+        // Convert value to string (in case it's a number or other type)
+        const value = data[key] !== null && data[key] !== undefined ? String(data[key]) : '';
+        
+        // Replace all occurrences of the placeholder with the value
+        renderedTemplate = renderedTemplate.replace(placeholder, value);
+      }
+    }
+    
+    // Return the rendered template with all placeholders replaced
+    return renderedTemplate;
   }
+
+
+module.exports = {
+    notificationTemplates,
+    renderTemplate
+}
