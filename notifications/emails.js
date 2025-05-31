@@ -129,7 +129,7 @@ async function sendEmail(recipient, message, options = {}) {
         status: 'sent',
         isMock: true
       };
-      
+
       // Log the sent notification with mock flag
       logger.logSent(recipient, message, options, true, {
         messageId: result.messageId
@@ -205,5 +205,6 @@ const send = errorHandler.withErrorHandling(sendEmail, 'email');
 module.exports = {
   sendEmail,
   send,
-  validateEmailInput  // Export the validation function for testing
+  validateEmailInput,  // Export the validation function for testing
+  sendEmailMock
 };

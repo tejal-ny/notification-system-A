@@ -18,6 +18,9 @@ const toggleChannelPreference = require('./userPreferences').toggleChannelPrefer
 const getUsersOptedInToChannel = require('./userPreferences').getUsersOptedInToChannel;
 const getUsersByLanguage = require('./userPreferences').getUsersByLanguage;
 // const renderTemplate = require('./notificationTemplates').renderTemplate;
+const { sendNotificationByPreference } = require("./controller/notificationController");
+const notificationController = require("./controller/notificationController")
+
 const notificationTemplates = require('./notificationTemplates').notificationTemplates;
 const renderTemplateByLanguage = require('./notificationTemplates').renderTemplateByLanguage;
 const templateManager = require('./templateManager');
@@ -64,48 +67,75 @@ module.exports = {
 };
 
 
-async function sendExampleNotifications() {
-  try {
-    // Email example
-    console.log('\n1. Sending an email notification:');
-    const emailResult = await notificationSystem.send(
-      notificationSystem.types.EMAIL,
-      'user@example.com',
-      'This is a test of the notification system.',
-      {
-        subject: 'Test Notification'
-      }
-    );
-    console.log('Email sent successfully:', emailResult);
+// async function sendExampleNotifications() {
+//   try {
+//     // Email example
+//     console.log('\n1. Sending an email notification:');
+//     const emailResult = await notificationSystem.send(
+//       notificationSystem.types.EMAIL,
+//       'user@example.com',
+//       'This is a test of the notification system.',
+//       {
+//         subject: 'Test Notification'
+//       }
+//     );
+//     console.log('Email sent successfully:', emailResult);
     
-    // SMS example
-    console.log('\n2. Sending an SMS notification:');
-    const smsResult = await notificationSystem.send(
-      notificationSystem.types.SMS,
-      '+12025551234', // Format: +[country code][area code][local number]
-      'Your verification code is: 123456'
-    );
-    console.log('SMS sent successfully:', smsResult);
+//     // SMS example
+//     console.log('\n2. Sending an SMS notification:');
+//     const smsResult = await notificationSystem.send(
+//       notificationSystem.types.SMS,
+//       '+12025551234', // Format: +[country code][area code][local number]
+//       'Your verification code is: 123456'
+//     );
+//     console.log('SMS sent successfully:', smsResult);
     
-    // Invalid phone number example
-    console.log('\n3. Attempting to send to invalid phone number:');
-    await notificationSystem.send(
-      notificationSystem.types.SMS,
-      '555-123-4567', // Invalid format (missing country code)
-      'This message should not be sent.'
-    );
-  } catch (error) {
-    console.error('Error caught:', error.message);
-    if (error.code) {
-      console.error('Error code:', error.code);
-    }
-  }
-}
+//     // Invalid phone number example
+//     console.log('\n3. Attempting to send to invalid phone number:');
+//     await notificationSystem.send(
+//       notificationSystem.types.SMS,
+//       '555-123-4567', // Invalid format (missing country code)
+//       'This message should not be sent.'
+//     );
+//   } catch (error) {
+//     console.error('Error caught:', error.message);
+//     if (error.code) {
+//       console.error('Error code:', error.code);
+//     }
+//   }
+// }
 
 // If this file is run directly, start the notification service
 if (require.main === module) {
-  const welcomeVerification = verifyTemplateConsistency('welcome');
-  console.log('Welcome template consistency:', welcomeVerification);
+    (async () => {
+       const email = "alice@example.com";
+        const result = await notificationController.sendNotificationByPreference(
+          email,
+          "welcome",
+          {
+            serviceName: "MyApp",
+            verificationLink: "https://example.com/verify?token=abc123",
+            supportEmail: "support@example.com",
+          }
+        );
+      
+        console.log("Welcome Notification Result:", JSON.stringify(result, null, 2));
+  // const email = "user@example.com";
+  // const result = await sendNotificationByPreference(
+  //   email,
+  //   "otp",
+  //   {
+  //     otpCode: "123456",
+  //     expiryTime: 10,
+  //     serviceName: "MyApp",
+  //   }
+  // );
+
+  // console.log("OTP Notification Result:", JSON.stringify(result, null, 2));
+})();
+
+  // const welcomeVerification = verifyTemplateConsistency('welcome');
+  // console.log('Welcome template consistency:', welcomeVerification);
   // getUsersByLanguage('en')
   // getUsersOptedInToChannel('email')
   // toggleChannelPreference('tejal1@example.com');

@@ -337,4 +337,5 @@ module.exports = {
   isValidPhoneNumber,
   send,
   formatPhoneNumber,
+  sendSmsMock
 };
