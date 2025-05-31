@@ -780,6 +780,370 @@ function getTemplatesByType(type, options = {}) {
     
     return rendered;
   }
+
+  /**
+ * Get all templates available in a specific language
+ * 
+ * This function scans the entire template registry and returns a list of all templates
+ * that are available in the requested language.
+ * 
+ * @param {string} language - The language code to search for (e.g., 'en', 'es', 'fr')
+ * @param {Object} [options] - Additional options for filtering and retrieval
+ * @param {boolean} [options.includeContent=false] - Whether to include the actual template content
+ * @param {boolean} [options.groupByType=true] - If true, templates are grouped by notification type
+ * @param {boolean} [options.includeMetadata=true] - If true, includes metadata about each template
+ * @param {string} [options.specificType] - Optionally limit search to a specific template type
+ * @returns {Object|Array} The templates available in the requested language
+ */
+function getTemplatesByLanguage(language, options = {}) {
+    const {
+      includeContent = false,
+      groupByType = true,
+      includeMetadata = true,
+      specificType = null
+    } = options;
+    
+    // Input validation
+    if (!language) {
+      console.error('Language code is required');
+      return groupByType ? {} : [];
+    }
+    
+    // Normalize language code
+    const normalizedLanguage = language.toLowerCase();
+    
+    try {
+      // Determine which types to process (all or specific)
+      const typesToProcess = specificType 
+        ? (templates[specificType] ? [specificType] : [])
+        : Object.keys(templates);
+      
+      // If no valid types to process
+      if (typesToProcess.length === 0) {
+        return groupByType ? {} : [];
+      }
+      
+      // If grouping by type (hierarchical structure)
+      if (groupByType) {
+        const result = {};
+        
+        // Process each template type
+        for (const type of typesToProcess) {
+          result[type] = {};
+          let languageFound = false;
+          
+          // Check each template name within this type
+          const templateNames = Object.keys(templates[type]);
+          for (const name of templateNames) {
+            // Check if this template is available in the requested language
+            if (templates[type][name][normalizedLanguage]) {
+              languageFound = true;
+              
+              // Create entry with or without content
+              if (includeContent) {
+                result[type][name] = templates[type][name][normalizedLanguage];
+              } else if (includeMetadata) {
+                // Include metadata but not content
+                const templateKeys = templates[type][name][normalizedLanguage] instanceof Object
+                  ? Object.keys(templates[type][name][normalizedLanguage])
+                  : ['content']; // For string templates
+                
+                result[type][name] = {
+                  available: true,
+                  type,
+                  name,
+                  language: normalizedLanguage,
+                  contentType: typeof templates[type][name][normalizedLanguage],
+                  fields: templateKeys
+                };
+              } else {
+                // Just indicate availability
+                result[type][name] = { available: true };
+              }
+            }
+          }
+          
+          // Remove empty types
+          if (!languageFound) {
+            delete result[type];
+          }
+        }
+        
+        return result;
+      }
+      // Flat list structure
+      else {
+        const result = [];
+        
+        // Process each template type
+        for (const type of typesToProcess) {
+          const templateNames = Object.keys(templates[type]);
+          
+          // Check each template name within this type
+          for (const name of templateNames) {
+            // Check if this template is available in the requested language
+            if (templates[type][name][normalizedLanguage]) {
+              // Create template entry
+              const templateEntry = {
+                type,
+                name,
+                language: normalizedLanguage
+              };
+              
+              // Add content if requested
+              if (includeContent) {
+                templateEntry.content = templates[type][name][normalizedLanguage];
+              }
+              
+              // Add metadata if requested
+              if (includeMetadata) {
+                const isObject = typeof templates[type][name][normalizedLanguage] === 'object';
+                templateEntry.contentType = isObject ? 'object' : 'string';
+                
+                if (isObject) {
+                  templateEntry.fields = Object.keys(templates[type][name][normalizedLanguage]);
+                }
+                
+                // Check other available languages for this template
+                const allLanguagesForTemplate = Object.keys(templates[type][name]);
+                templateEntry.availableLanguages = allLanguagesForTemplate;
+              }
+              
+              result.push(templateEntry);
+            }
+          }
+        }
+        
+        return result;
+      }
+    } catch (error) {
+      console.error(`Error retrieving templates for language '${language}':`, error);
+      return groupByType ? {} : [];
+    }
+  }
+  
+  /**
+   * Get a list of all languages available across all templates or specific template types
+   * 
+   * @param {string} [type] - Optional template type to limit the search
+   * @returns {string[]} Array of language codes
+   */
+  function getAllAvailableLanguages(type = null) {
+    try {
+      const languages = new Set();
+      
+      // Determine which types to process
+      const typesToProcess = type ? (templates[type] ? [type] : []) : Object.keys(templates);
+      
+      // Process each template type
+      for (const templateType of typesToProcess) {
+        const templateNames = Object.keys(templates[templateType]);
+        
+        // Process each template name
+        for (const templateName of templateNames) {
+          // Add all languages for this template
+          const templateLanguages = Object.keys(templates[templateType][templateName]);
+          templateLanguages.forEach(lang => languages.add(lang));
+        }
+      }
+      
+      return [...languages];
+    } catch (error) {
+      console.error('Error getting available languages:', error);
+      return [];
+    }
+  }
+  
+  /**
+   * Check if a specific language is supported by any template
+   * 
+   * @param {string} language - The language code to check
+   * @param {string} [type] - Optional template type to limit the check
+   * @returns {boolean} True if the language is supported
+   */
+  function isLanguageSupported(language, type = null) {
+    if (!language) return false;
+    
+    const normalizedLanguage = language.toLowerCase();
+    const availableLanguages = getAllAvailableLanguages(type);
+    
+    return availableLanguages.includes(normalizedLanguage);
+  }
+  
+  /**
+   * Get language coverage statistics for templates
+   * 
+   * @param {string[]} [languages] - Optional array of languages to check (defaults to all available)
+   * @param {string} [type] - Optional template type to limit the analysis
+   * @returns {Object} Language coverage statistics
+   */
+  function getLanguageCoverageStats(languages = null, type = null) {
+    try {
+      // Get all available languages if not specified
+      const allLanguages = languages || getAllAvailableLanguages();
+      
+      // Get all available template types
+      const typesToProcess = type ? (templates[type] ? [type] : []) : Object.keys(templates);
+      
+      // Initialize result structure
+      const result = {
+        languages: {},
+        totalTemplates: 0,
+        totalTypes: typesToProcess.length,
+        typeBreakdown: {},
+        mostCoveredTemplates: [],
+        leastCoveredTemplates: []
+      };
+      
+      // Count total templates first
+      let templateCount = 0;
+      for (const templateType of typesToProcess) {
+        const templateNames = Object.keys(templates[templateType]);
+        templateCount += templateNames.length;
+        result.typeBreakdown[templateType] = {
+          totalTemplates: templateNames.length,
+          templates: {}
+        };
+      }
+      
+      result.totalTemplates = templateCount;
+      
+      // Initialize language stats
+      for (const lang of allLanguages) {
+        result.languages[lang] = {
+          count: 0,
+          percentage: 0,
+          templates: [],
+          missingTemplates: []
+        };
+      }
+      
+      // Calculate coverage
+      for (const templateType of typesToProcess) {
+        const templateNames = Object.keys(templates[templateType]);
+        
+        for (const templateName of templateNames) {
+          const availableLanguages = Object.keys(templates[templateType][templateName]);
+          const templateKey = `${templateType}.${templateName}`;
+          
+          // Track languages for this template
+          result.typeBreakdown[templateType].templates[templateName] = {
+            availableLanguages,
+            coverage: availableLanguages.length / allLanguages.length
+          };
+          
+          // Update language stats
+          for (const lang of allLanguages) {
+            if (availableLanguages.includes(lang)) {
+              result.languages[lang].count++;
+              result.languages[lang].templates.push(templateKey);
+            } else {
+              result.languages[lang].missingTemplates.push(templateKey);
+            }
+          }
+        }
+      }
+      
+      // Calculate percentages
+      for (const lang of allLanguages) {
+        result.languages[lang].percentage = 
+          (result.languages[lang].count / result.totalTemplates) * 100;
+      }
+      
+      // Find most and least covered templates
+      const templateCoverage = {};
+      for (const templateType of typesToProcess) {
+        const templateNames = Object.keys(templates[templateType]);
+        
+        for (const templateName of templateNames) {
+          const availableLanguages = Object.keys(templates[templateType][templateName]);
+          const templateKey = `${templateType}.${templateName}`;
+          
+          templateCoverage[templateKey] = {
+            type: templateType,
+            name: templateName,
+            languages: availableLanguages,
+            coverage: availableLanguages.length / allLanguages.length
+          };
+        }
+      }
+      
+      // Sort by coverage and take top/bottom 5
+      const sortedTemplates = Object.entries(templateCoverage)
+        .sort((a, b) => b[1].coverage - a[1].coverage);
+      
+      result.mostCoveredTemplates = sortedTemplates.slice(0, 5).map(([key, value]) => ({
+        template: key,
+        languages: value.languages,
+        coveragePercent: value.coverage * 100
+      }));
+      
+      result.leastCoveredTemplates = sortedTemplates
+        .slice(-5)
+        .map(([key, value]) => ({
+          template: key,
+          languages: value.languages,
+          coveragePercent: value.coverage * 100
+        }))
+        .reverse(); // Show worst first
+      
+      return result;
+    } catch (error) {
+      console.error('Error getting language coverage stats:', error);
+      return { error: 'Failed to analyze language coverage' };
+    }
+  }
+  
+  /**
+   * Find templates that need translation for a specific language
+   * 
+   * @param {string} targetLanguage - The language to check for missing translations
+   * @param {Array} [referenceLanguages=['en']] - Languages to use as reference
+   * @returns {Array} List of templates that need translation
+   */
+  function findMissingTranslations(targetLanguage, referenceLanguages = ['en']) {
+    if (!targetLanguage) {
+      console.error('Target language is required');
+      return [];
+    }
+    
+    const normalizedTarget = targetLanguage.toLowerCase();
+    const normalizedReferences = referenceLanguages.map(lang => lang.toLowerCase());
+    
+    try {
+      const result = [];
+      
+      // Process all template types
+      for (const type of Object.keys(templates)) {
+        for (const name of Object.keys(templates[type])) {
+          // Check if template exists in any reference language
+          const existsInReference = normalizedReferences.some(
+            refLang => templates[type][name][refLang]
+          );
+          
+          // Skip if not in any reference language
+          if (!existsInReference) continue;
+          
+          // Check if target language version exists
+          if (!templates[type][name][normalizedTarget]) {
+            result.push({
+              type,
+              name,
+              availableLanguages: Object.keys(templates[type][name]),
+              referenceLanguage: normalizedReferences.find(
+                refLang => templates[type][name][refLang]
+              )
+            });
+          }
+        }
+      }
+      
+      return result;
+    } catch (error) {
+      console.error(`Error finding missing translations for language '${targetLanguage}':`, error);
+      return [];
+    }
+  }
   
   // Export the functions
   module.exports = {
@@ -795,5 +1159,9 @@ function getTemplatesByType(type, options = {}) {
     DEFAULT_LANGUAGE,
     getTemplatesByType,
     getTemplateNamesByType,
-    getAndRenderTemplate
+    getAndRenderTemplate,
+    getTemplatesByLanguage,
+    getLanguageCoverageStats,
+    isLanguageSupported,
+    findMissingTranslations
   };

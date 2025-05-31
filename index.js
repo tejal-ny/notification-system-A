@@ -24,6 +24,7 @@ const templateManager = require('./templateManager');
 const getTemplate = require('./templateUtils').getTemplate;
 const renderTemplate = require('./templateUtils').renderTemplate;
 const getTemplatesByType = require('./templateUtils').getTemplatesByType;
+const getTemplatesByLanguage = require('./templateUtils').getTemplatesByLanguage;
 // Example function to demonstrate usage
 function sendNotification(type, recipient, message, options = {}) {
   if (!notifications[type]) {
@@ -102,8 +103,8 @@ async function sendExampleNotifications() {
 
 // If this file is run directly, start the notification service
 if (require.main === module) {
-  const allEmailTemplates = getTemplatesByType('email');
-console.log('All email templates:', Object.keys(allEmailTemplates));
+  const allSpanishTemplates = getTemplatesByLanguage('es');
+console.log('Spanish templates available:', allSpanishTemplates);
 
   // getUsersByLanguage('en')
   // getUsersOptedInToChannel('email')
