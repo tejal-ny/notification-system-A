@@ -1144,6 +1144,326 @@ function getTemplatesByLanguage(language, options = {}) {
       return [];
     }
   }
+
+  /**
+ * Verify that a template exists across multiple notification types
+ * 
+ * This function checks whether a specific template key (e.g., 'welcome', 'otp') 
+ * exists consistently across different notification types (e.g., email, sms).
+ * It helps ensure template consistency across different communication channels.
+ * 
+ * @param {string} templateName - The template name to verify
+ * @param {string[]} [typesToCheck=['email', 'sms']] - Notification types to check
+ * @param {Object} [options] - Additional verification options
+ * @param {boolean} [options.checkLanguages=false] - Whether to verify language consistency
+ * @param {string[]} [options.requiredLanguages] - Specific languages that should exist across all types
+ * @param {boolean} [options.verbose=false] - Whether to include detailed information in the result
+ * @returns {Object} Verification result with consistency status and details
+ */
+function verifyTemplateConsistency(templateName, typesToCheck = ['email', 'sms'], options = {}) {
+    const { 
+      checkLanguages = false, 
+      requiredLanguages = [], 
+      verbose = false 
+    } = options;
+    
+    // Input validation
+    if (!templateName) {
+      console.error('Template name is required');
+      return {
+        isConsistent: false,
+        error: 'Template name is required',
+        templateName: null
+      };
+    }
+    
+    // Validate notification types to check
+    const validTypes = typesToCheck.filter(type => templates[type] !== undefined);
+    
+    if (validTypes.length === 0) {
+      return {
+        isConsistent: false,
+        error: 'No valid notification types provided for verification',
+        templateName,
+        requestedTypes: typesToCheck,
+        availableTypes: Object.keys(templates)
+      };
+    }
+    
+    try {
+      // Initialize result
+      const result = {
+        isConsistent: true,
+        templateName,
+        typesChecked: validTypes,
+        availability: {},
+        missing: [],
+        present: []
+      };
+      
+      // Check availability across types
+      for (const type of validTypes) {
+        const exists = templates[type] && templates[type][templateName];
+        result.availability[type] = exists;
+        
+        if (exists) {
+          result.present.push(type);
+        } else {
+          result.missing.push(type);
+          result.isConsistent = false;
+        }
+      }
+      
+      // If checking language consistency and template exists in all types
+      if (checkLanguages && result.isConsistent) {
+        const languageInfo = {};
+        let languagesConsistent = true;
+        
+        // Build set of all languages across all types
+        const allLanguages = new Set();
+        
+        // Track languages for each type
+        for (const type of validTypes) {
+          const templateLanguages = Object.keys(templates[type][templateName]);
+          languageInfo[type] = {
+            availableLanguages: templateLanguages,
+            count: templateLanguages.length
+          };
+          
+          // Add to all languages set
+          templateLanguages.forEach(lang => allLanguages.add(lang));
+        }
+        
+        // Check consistency across types
+        const allLanguagesArray = [...allLanguages];
+        const languageConsistency = {};
+        
+        // For each language, check if it exists in all types
+        for (const lang of allLanguagesArray) {
+          languageConsistency[lang] = {
+            availableInAllTypes: true,
+            missingIn: []
+          };
+          
+          for (const type of validTypes) {
+            if (!templates[type][templateName][lang]) {
+              languageConsistency[lang].availableInAllTypes = false;
+              languageConsistency[lang].missingIn.push(type);
+            }
+          }
+          
+          // If any required language is inconsistent, mark overall consistency as false
+          if (requiredLanguages.includes(lang) && !languageConsistency[lang].availableInAllTypes) {
+            languagesConsistent = false;
+          }
+        }
+        
+        // Add language consistency info to result
+        result.languageConsistency = {
+          isConsistent: languagesConsistent,
+          allLanguages: allLanguagesArray,
+          details: languageConsistency,
+          typeBreakdown: languageInfo
+        };
+        
+        // Update overall consistency to include language consistency
+        result.isConsistent = result.isConsistent && languagesConsistent;
+      }
+      
+      // Remove verbose details if not requested
+      if (!verbose) {
+        delete result.availability;
+        if (result.languageConsistency) {
+          delete result.languageConsistency.details;
+          delete result.languageConsistency.typeBreakdown;
+        }
+      }
+      
+      return result;
+    } catch (error) {
+      console.error(`Error verifying template '${templateName}' consistency:`, error);
+      return {
+        isConsistent: false,
+        error: `Error during verification: ${error.message}`,
+        templateName
+      };
+    }
+  }
+  
+  /**
+   * Verify consistency across multiple templates
+   * 
+   * @param {string[]} templateNames - Array of template names to verify
+   * @param {string[]} [typesToCheck=['email', 'sms']] - Notification types to check
+   * @param {Object} [options] - Additional verification options
+   * @returns {Object} Verification results with summaries
+   */
+  function verifyMultipleTemplates(templateNames, typesToCheck = ['email', 'sms'], options = {}) {
+    if (!templateNames || !Array.isArray(templateNames) || templateNames.length === 0) {
+      return {
+        verified: 0,
+        consistent: 0,
+        inconsistent: 0,
+        error: 'No template names provided for verification'
+      };
+    }
+    
+    const results = {
+      verified: templateNames.length,
+      consistent: 0,
+      inconsistent: 0,
+      details: [],
+      inconsistentTemplates: []
+    };
+    
+    // Verify each template
+    for (const templateName of templateNames) {
+      const verificationResult = verifyTemplateConsistency(templateName, typesToCheck, options);
+      
+      results.details.push(verificationResult);
+      
+      if (verificationResult.isConsistent) {
+        results.consistent++;
+      } else {
+        results.inconsistent++;
+        results.inconsistentTemplates.push({
+          name: templateName,
+          issues: verificationResult.missing.length > 0 
+            ? `Missing in: ${verificationResult.missing.join(', ')}` 
+            : 'Language inconsistency' 
+        });
+      }
+    }
+    
+    return results;
+  }
+  
+  /**
+   * Verify all templates in the system for consistency
+   * 
+   * @param {string[]} [typesToCheck=['email', 'sms']] - Notification types to check
+   * @param {Object} [options] - Additional verification options
+   * @returns {Object} Comprehensive verification results
+   */
+  function verifyAllTemplates(typesToCheck = ['email', 'sms'], options = {}) {
+    try {
+      // Get unique template names across all specified types
+      const allTemplateNames = new Set();
+      
+      // Collect all valid types
+      const validTypes = typesToCheck.filter(type => templates[type]);
+      
+      // If no valid types, return error
+      if (validTypes.length === 0) {
+        return {
+          error: 'No valid notification types provided for verification',
+          requestedTypes: typesToCheck,
+          availableTypes: Object.keys(templates)
+        };
+      }
+      
+      // Collect all template names
+      for (const type of validTypes) {
+        const templateNamesForType = Object.keys(templates[type]);
+        templateNamesForType.forEach(name => allTemplateNames.add(name));
+      }
+      
+      // Convert to array
+      const templateNames = [...allTemplateNames];
+      
+      // No templates found
+      if (templateNames.length === 0) {
+        return {
+          error: 'No templates found for the specified types',
+          typesChecked: validTypes
+        };
+      }
+      
+      // Verify all templates
+      return verifyMultipleTemplates(templateNames, validTypes, options);
+      
+    } catch (error) {
+      console.error('Error verifying all templates:', error);
+      return {
+        error: `Error during verification: ${error.message}`
+      };
+    }
+  }
+  
+  /**
+   * Find templates that are missing in some notification types but present in others
+   * 
+   * This is useful for identifying templates that need to be created for certain
+   * notification channels to ensure consistent user experience.
+   *
+   * @param {string[]} [typesToCheck=['email', 'sms']] - Notification types to check
+   * @returns {Object[]} Array of templates with consistency issues
+   */
+  function findInconsistentTemplates(typesToCheck = ['email', 'sms']) {
+    try {
+      // Filter to valid types
+      const validTypes = typesToCheck.filter(type => templates[type]);
+      
+      if (validTypes.length <= 1) {
+        return {
+          error: 'At least two valid notification types are required for comparison',
+          requestedTypes: typesToCheck,
+          validTypes
+        };
+      }
+      
+      // Get all template names across all types
+      const allTemplateNames = new Set();
+      
+      for (const type of validTypes) {
+        Object.keys(templates[type]).forEach(name => allTemplateNames.add(name));
+      }
+      
+      const inconsistentTemplates = [];
+      
+      // Check each template name
+      for (const templateName of allTemplateNames) {
+        const availability = {};
+        const missingIn = [];
+        const presentIn = [];
+        
+        // Check availability in each type
+        for (const type of validTypes) {
+          const isAvailable = !!(templates[type] && templates[type][templateName]);
+          availability[type] = isAvailable;
+          
+          if (isAvailable) {
+            presentIn.push(type);
+          } else {
+            missingIn.push(type);
+          }
+        }
+        
+        // If template is inconsistent (available in some types but not others)
+        if (missingIn.length > 0 && presentIn.length > 0) {
+          inconsistentTemplates.push({
+            name: templateName,
+            availability,
+            missingIn,
+            presentIn,
+            recommendedAction: `Create template '${templateName}' for ${missingIn.join(', ')}`
+          });
+        }
+      }
+      
+      return {
+        totalTemplatesChecked: allTemplateNames.size,
+        inconsistentCount: inconsistentTemplates.length,
+        inconsistentTemplates
+      };
+      
+    } catch (error) {
+      console.error('Error finding inconsistent templates:', error);
+      return {
+        error: `Error during verification: ${error.message}`
+      };
+    }
+  }
   
   // Export the functions
   module.exports = {
@@ -1163,5 +1483,8 @@ function getTemplatesByLanguage(language, options = {}) {
     getTemplatesByLanguage,
     getLanguageCoverageStats,
     isLanguageSupported,
-    findMissingTranslations
+    findMissingTranslations,
+    verifyAllTemplates,
+    findInconsistentTemplates,
+    verifyTemplateConsistency
   };

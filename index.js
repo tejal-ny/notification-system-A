@@ -25,6 +25,7 @@ const getTemplate = require('./templateUtils').getTemplate;
 const renderTemplate = require('./templateUtils').renderTemplate;
 const getTemplatesByType = require('./templateUtils').getTemplatesByType;
 const getTemplatesByLanguage = require('./templateUtils').getTemplatesByLanguage;
+const verifyTemplateConsistency = require('./templateUtils').verifyTemplateConsistency;
 // Example function to demonstrate usage
 function sendNotification(type, recipient, message, options = {}) {
   if (!notifications[type]) {
@@ -103,9 +104,8 @@ async function sendExampleNotifications() {
 
 // If this file is run directly, start the notification service
 if (require.main === module) {
-  const allSpanishTemplates = getTemplatesByLanguage('es');
-console.log('Spanish templates available:', allSpanishTemplates);
-
+  const welcomeVerification = verifyTemplateConsistency('welcome');
+  console.log('Welcome template consistency:', welcomeVerification);
   // getUsersByLanguage('en')
   // getUsersOptedInToChannel('email')
   // toggleChannelPreference('tejal1@example.com');
