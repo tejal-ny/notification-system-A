@@ -23,6 +23,7 @@ const renderTemplateByLanguage = require('./notificationTemplates').renderTempla
 const templateManager = require('./templateManager');
 const getTemplate = require('./templateUtils').getTemplate;
 const renderTemplate = require('./templateUtils').renderTemplate;
+const getTemplatesByType = require('./templateUtils').getTemplatesByType;
 // Example function to demonstrate usage
 function sendNotification(type, recipient, message, options = {}) {
   if (!notifications[type]) {
@@ -101,16 +102,8 @@ async function sendExampleNotifications() {
 
 // If this file is run directly, start the notification service
 if (require.main === module) {
-  const welcomeEmail = getTemplate('email', 'welcome', 'es');
-
-  const rendered = renderTemplate(welcomeEmail, {
-    serviceName: 'MyApp',
-    verificationLink: 'https://myapp.com/verify?token=abc123',
-    // supportEmail is missing
-  });
-
-  console.log('Subject:', rendered.subject);
-  console.log('Body:', rendered.body);
+  const allEmailTemplates = getTemplatesByType('email');
+console.log('All email templates:', Object.keys(allEmailTemplates));
 
   // getUsersByLanguage('en')
   // getUsersOptedInToChannel('email')

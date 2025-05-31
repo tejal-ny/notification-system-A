@@ -567,6 +567,219 @@ const templates = {
       return false;
     }
   }
+
+  /**
+ * Get all templates filtered by notification type
+ * 
+ * This function returns all available templates for a specific notification type (e.g., email or SMS),
+ * optionally filtered by language and with template contents included.
+ * 
+ * @param {string} type - The notification type to filter by (e.g., 'email', 'sms')
+ * @param {Object} [options] - Additional options for filtering and template retrieval
+ * @param {string|string[]} [options.language] - Filter by language or language preference array
+ * @param {boolean} [options.includeContent=true] - Whether to include the actual template content
+ * @param {boolean} [options.flattenStructure=false] - If true, returns a flat list of templates instead of hierarchical
+ * @param {boolean} [options.strictLanguage=false] - If true, only returns templates that match the exact language
+ * @returns {Object|Array} The filtered templates in requested format
+ */
+function getTemplatesByType(type, options = {}) {
+    const {
+      language = null, 
+      includeContent = true, 
+      flattenStructure = false,
+      strictLanguage = false
+    } = options;
+    
+    // Input validation
+    if (!type) {
+      console.error('Template type is required');
+      return flattenStructure ? [] : {};
+    }
+  
+    // Check if the type exists
+    if (!templates[type]) {
+      console.warn(`No templates found for type '${type}'`);
+      return flattenStructure ? [] : {};
+    }
+    
+    // Normalize language preferences if provided
+    const languagePreferences = language ? (
+      Array.isArray(language) 
+        ? language.map(lang => lang.toLowerCase())
+        : [language.toLowerCase()]
+    ) : null;
+    
+    // Default language as fallback if not in strict language mode
+    const useDefaultFallback = !strictLanguage && languagePreferences?.includes(DEFAULT_LANGUAGE) === false;
+    
+    try {
+      // Process templates based on the specified type
+      const templateNames = Object.keys(templates[type]);
+      
+      // Return flat array format if requested
+      if (flattenStructure) {
+        const result = [];
+        
+        for (const templateName of templateNames) {
+          // Get available languages for this template
+          const availableLanguages = Object.keys(templates[type][templateName]);
+          
+          // If language filter is provided, process accordingly
+          if (languagePreferences) {
+            let selectedLanguage = null;
+            
+            // Find the first matching language in order of preference
+            for (const lang of languagePreferences) {
+              if (availableLanguages.includes(lang)) {
+                selectedLanguage = lang;
+                break;
+              }
+            }
+            
+            // If no match found and not in strict mode, fall back to default
+            if (!selectedLanguage && !strictLanguage && useDefaultFallback && 
+                availableLanguages.includes(DEFAULT_LANGUAGE)) {
+              selectedLanguage = DEFAULT_LANGUAGE;
+            }
+            
+            // Skip if no matching language found
+            if (!selectedLanguage) continue;
+            
+            // Add template to results
+            result.push({
+              type,
+              name: templateName,
+              language: selectedLanguage,
+              content: includeContent ? templates[type][templateName][selectedLanguage] : undefined
+            });
+          } else {
+            // No language filter - add all language variants
+            for (const lang of availableLanguages) {
+              result.push({
+                type,
+                name: templateName,
+                language: lang,
+                content: includeContent ? templates[type][templateName][lang] : undefined
+              });
+            }
+          }
+        }
+        
+        return result;
+      } 
+      // Return hierarchical structure (default)
+      else {
+        const result = {};
+        
+        for (const templateName of templateNames) {
+          const templateLanguages = templates[type][templateName];
+          const availableLanguages = Object.keys(templateLanguages);
+          
+          // Initialize template entry
+          result[templateName] = {};
+          
+          // If language filter is provided, process accordingly
+          if (languagePreferences) {
+            let selectedLanguages = [];
+            
+            // Find all matching languages
+            for (const lang of languagePreferences) {
+              if (availableLanguages.includes(lang)) {
+                selectedLanguages.push(lang);
+              }
+            }
+            
+            // If no matches found and not in strict mode, fall back to default language
+            if (selectedLanguages.length === 0 && !strictLanguage && useDefaultFallback && 
+                availableLanguages.includes(DEFAULT_LANGUAGE)) {
+              selectedLanguages.push(DEFAULT_LANGUAGE);
+            }
+            
+            // Skip if no matching languages found
+            if (selectedLanguages.length === 0) {
+              delete result[templateName];
+              continue;
+            }
+            
+            // Add matching language templates
+            for (const lang of selectedLanguages) {
+              result[templateName][lang] = includeContent 
+                ? templateLanguages[lang] 
+                : { available: true };
+            }
+          } else {
+            // No language filter - include all language variants
+            for (const lang of availableLanguages) {
+              result[templateName][lang] = includeContent 
+                ? templateLanguages[lang] 
+                : { available: true };
+            }
+          }
+        }
+        
+        return result;
+      }
+    } catch (error) {
+      console.error(`Error retrieving templates for type '${type}':`, error);
+      return flattenStructure ? [] : {};
+    }
+  }
+  
+  /**
+   * Get a list of unique template names for a specific notification type
+   * 
+   * @param {string} type - The notification type (e.g., 'email', 'sms')
+   * @returns {string[]} Array of template names
+   */
+  function getTemplateNamesByType(type) {
+    if (!type || !templates[type]) {
+      return [];
+    }
+    
+    return Object.keys(templates[type]);
+  }
+  
+  // Additional utility functions for template selection
+  
+  /**
+   * Get template by name for a specific notification type, with built-in language selection
+   * 
+   * This is a convenience function that combines getTemplate and renderTemplate in one step,
+   * making it easy to get and use templates with proper language handling.
+   * 
+   * @param {string} type - The notification type (e.g., 'email', 'sms') 
+   * @param {string} name - The template name
+   * @param {Object} data - The data to use for rendering
+   * @param {Object} [options] - Additional options
+   * @param {string|string[]} [options.language] - Language preference(s)
+   * @param {Object} [options.defaultValues] - Custom default values
+   * @param {boolean} [options.removeUnreplacedPlaceholders=false] - If true, removes unreplaced placeholders
+   * @returns {Object} The rendered template with metadata
+   */
+  function getAndRenderTemplate(type, name, data, options = {}) {
+    const {
+      language = DEFAULT_LANGUAGE,
+      defaultValues = {},
+      removeUnreplacedPlaceholders = false,
+      includeMetadata = true
+    } = options;
+    
+    // Get the template with metadata
+    const templateResult = getTemplate(type, name, language, { includeMetadata: true });
+    
+    if (!templateResult) {
+      return null;
+    }
+    
+    // Render the template with defaults
+    const rendered = renderTemplate(templateResult, data, {
+      preserveMetadata: includeMetadata,
+      defaultValues,
+      removeUnreplacedPlaceholders
+    });
+    
+    return rendered;
+  }
   
   // Export the functions
   module.exports = {
@@ -579,5 +792,8 @@ const templates = {
     addTemplate,
     setDefaultFieldValues,
     getDefaultFieldValues,
-    DEFAULT_LANGUAGE
+    DEFAULT_LANGUAGE,
+    getTemplatesByType,
+    getTemplateNamesByType,
+    getAndRenderTemplate
   };
