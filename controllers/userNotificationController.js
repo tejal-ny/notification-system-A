@@ -314,6 +314,7 @@ function getUserNotificationChannels(email, notificationType) {
 
 /**
  * Prepares and renders notification templates for the specified channels based on user preferences
+ * with language fallback mechanism
  * 
  * @param {string} notificationType - The type of notification (e.g., 'welcome', 'otp')
  * @param {Array} channels - Array of channels to prepare templates for
@@ -323,7 +324,8 @@ function getUserNotificationChannels(email, notificationType) {
  */
 function prepareNotificationTemplates(notificationType, channels, userData, dynamicData) {
   const templates = {};
-  const language = userData.language || 'en';
+  const preferredLanguage = userData.language || 'en';
+  const DEFAULT_FALLBACK_LANGUAGE = 'en';
   
   // Prepare personalization data by merging default values, user data and dynamic data
   const templateData = {
@@ -338,12 +340,56 @@ function prepareNotificationTemplates(notificationType, channels, userData, dyna
   
   console.log(`Preparing templates with data: ${JSON.stringify(templateData, null, 2)}`);
   
+  /**
+   * Helper to get template with fallback language support
+   * @param {string} type - The template type (email, sms)
+   * @param {string} notifType - The notification type (welcome, otp, etc.)
+   * @param {string} lang - The preferred language
+   * @returns {Object} Template and metadata about fallback
+   */
+  function getTemplateWithFallback(type, notifType, lang) {
+    // First try with preferred language
+    const template = getTemplate(type, notifType, lang);
+    
+    if (template) {
+      return {
+        template,
+        language: lang,
+        fallbackUsed: false
+      };
+    }
+    
+    // If preferred language is not available and is not already English,
+    // try falling back to English
+    if (lang !== DEFAULT_FALLBACK_LANGUAGE) {
+      console.log(`${type} template not found for ${notifType} in "${lang}" language. Falling back to ${DEFAULT_FALLBACK_LANGUAGE}`);
+      
+      const fallbackTemplate = getTemplate(type, notifType, DEFAULT_FALLBACK_LANGUAGE);
+      
+      if (fallbackTemplate) {
+        return {
+          template: fallbackTemplate,
+          language: DEFAULT_FALLBACK_LANGUAGE,
+          fallbackUsed: true
+        };
+      }
+    }
+    
+    // If we reach here, no template was found in either language
+    console.log(`No ${type} template found for ${notifType} in either "${lang}" or fallback language "${DEFAULT_FALLBACK_LANGUAGE}"`);
+    return {
+      template: null,
+      language: null,
+      fallbackUsed: false
+    };
+  }
+  
   // Check if email channel is enabled and prepare email template
   if (channels.includes('email')) {
-    const emailTemplate = getTemplate('email', notificationType, language);
+    const { template: emailTemplate, language: usedLanguage, fallbackUsed } = 
+      getTemplateWithFallback('email', notificationType, preferredLanguage);
     
     if (!emailTemplate) {
-      console.log(`Email template not found for ${notificationType} in ${language} language`);
       templates.email = null;
     } else {
       // Render the subject and body templates with the personalized data
@@ -354,20 +400,26 @@ function prepareNotificationTemplates(notificationType, channels, userData, dyna
         subject: renderedSubject,
         body: renderedBody,
         originalTemplate: emailTemplate,
+        language: usedLanguage,
+        fallbackUsed,
         data: templateData
       };
       
-      console.log(`Prepared personalized email template for ${notificationType} notification in ${language}`);
+      const languageInfo = fallbackUsed 
+        ? ` in ${usedLanguage} (fallback from ${preferredLanguage})` 
+        : ` in ${usedLanguage}`;
+        
+      console.log(`Prepared personalized email template for ${notificationType} notification${languageInfo}`);
       console.log(`Email subject: "${renderedSubject.substring(0, 30)}..."`);
     }
   }
   
   // Check if SMS channel is enabled and prepare SMS template
   if (channels.includes('sms')) {
-    const smsTemplate = getTemplate('sms', notificationType, language);
+    const { template: smsTemplate, language: usedLanguage, fallbackUsed } = 
+      getTemplateWithFallback('sms', notificationType, preferredLanguage);
     
     if (!smsTemplate) {
-      console.log(`SMS template not found for ${notificationType} in ${language} language`);
       templates.sms = null;
     } else {
       // Render the SMS template with the personalized data
@@ -376,10 +428,16 @@ function prepareNotificationTemplates(notificationType, channels, userData, dyna
       templates.sms = {
         message: renderedMessage,
         originalTemplate: smsTemplate,
+        language: usedLanguage,
+        fallbackUsed,
         data: templateData
       };
       
-      console.log(`Prepared personalized SMS template for ${notificationType} notification in ${language}`);
+      const languageInfo = fallbackUsed 
+        ? ` in ${usedLanguage} (fallback from ${preferredLanguage})` 
+        : ` in ${usedLanguage}`;
+        
+      console.log(`Prepared personalized SMS template for ${notificationType} notification${languageInfo}`);
       console.log(`SMS message (truncated): "${renderedMessage.substring(0, 30)}..."`);
     }
   }
@@ -476,10 +534,13 @@ async function sendUserNotification(email, notificationType, dynamicData = {}) {
   
   // Use mock services to send through enabled channels
   
-  // Send email if enabled
   if (channels.includes('email') && templates.email) {
     try {
-      console.log(`Sending personalized ${notificationType} email to: ${email}`);
+      const fallbackInfo = templates.email.fallbackUsed 
+        ? ` using fallback language (${templates.email.language})` 
+        : '';
+        
+      console.log(`Sending personalized ${notificationType} email to: ${email}${fallbackInfo}`);
       
       // In a real implementation, we would call an actual email service here
       // For mock purposes, we'll log and simulate a successful send
@@ -497,16 +558,20 @@ async function sendUserNotification(email, notificationType, dynamicData = {}) {
         messageId: `mock-email-${Date.now()}`,
         sentTo: email,
         subject: templates.email.subject,
+        language: templates.email.language,
+        fallbackUsed: templates.email.fallbackUsed,
         timestamp: new Date().toISOString()
       };
       
       // Store a preview of the rendered content
       results.sentContent.email = {
         subject: templates.email.subject,
-        body: templates.email.body.substring(0, 100) + (templates.email.body.length > 100 ? '...' : '')
+        body: templates.email.body.substring(0, 100) + (templates.email.body.length > 100 ? '...' : ''),
+        language: templates.email.language,
+        fallbackUsed: templates.email.fallbackUsed
       };
       
-      console.log(`Successfully sent personalized ${notificationType} email to ${email}`);
+      console.log(`Successfully sent personalized ${notificationType} email to ${email}${fallbackInfo}`);
     } catch (error) {
       console.log(`Failed to send email to ${email}:`, error);
       results.results.email = {
@@ -520,7 +585,11 @@ async function sendUserNotification(email, notificationType, dynamicData = {}) {
   // Send SMS if enabled
   if (channels.includes('sms') && templates.sms) {
     try {
-      console.log(`Sending personalized ${notificationType} SMS to: ${userData.phone}`);
+      const fallbackInfo = templates.sms.fallbackUsed 
+        ? ` using fallback language (${templates.sms.language})` 
+        : '';
+        
+      console.log(`Sending personalized ${notificationType} SMS to: ${userData.phone}${fallbackInfo}`);
       
       // In a real implementation, we would call an actual SMS service here
       // For mock purposes, we'll log and simulate a successful send
@@ -535,15 +604,19 @@ async function sendUserNotification(email, notificationType, dynamicData = {}) {
         success: true,
         messageId: `mock-sms-${Date.now()}`,
         sentTo: userData.phone,
+        language: templates.sms.language,
+        fallbackUsed: templates.sms.fallbackUsed,
         timestamp: new Date().toISOString()
       };
       
       // Store a preview of the rendered content
       results.sentContent.sms = {
-        message: templates.sms.message.substring(0, 100) + (templates.sms.message.length > 100 ? '...' : '')
+        message: templates.sms.message.substring(0, 100) + (templates.sms.message.length > 100 ? '...' : ''),
+        language: templates.sms.language,
+        fallbackUsed: templates.sms.fallbackUsed
       };
       
-      console.log(`Successfully sent personalized ${notificationType} SMS to ${userData.phone}`);
+      console.log(`Successfully sent personalized ${notificationType} SMS to ${userData.phone}${fallbackInfo}`);
     } catch (error) {
       console.log(`Failed to send SMS to ${userData.phone}:`, error);
       results.results.sms = {
