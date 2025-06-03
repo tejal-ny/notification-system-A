@@ -10,7 +10,7 @@ const notificationSystem = require('./notifications');
 const { dispatcher,dispatchNotification } = require('./dispatcher');
 const errorHandler = require('./error-handler');
 const logger = require('./logger');
-const sendNotification = require('./controllers/userNotificationController').sendNotification;
+const sendUserNotification = require('./controllers/userNotificationController').sendUserNotification;
 
 // Initialize the notification system
 console.log(`Initializing notification system in ${process.env.NODE_ENV || 'development'} mode...`);
@@ -80,7 +80,7 @@ async function sendExampleNotifications() {
 
 // If this file is run directly, start the notification service
 if (require.main === module) {
-  const result = sendNotification(
+  const result = sendUserNotification(
     'user@example.com',
     'welcome',
     { userName: 'John', serviceName: 'YourApp' }
