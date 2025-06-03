@@ -13,19 +13,38 @@ const mockSmsService = require('../notifications/sms');
  * Default test data for template personalization
  * This would normally come from the application context or be passed in
  */
-const DEFAULT_TEST_DATA = {
+const DEFAULT_DATA = {
   serviceName: 'NotifyHub',
-  userName: 'Test User',
+  userName: 'Valued Customer',
   verificationLink: 'https://example.com/verify?token=sample-token-12345',
   resetLink: 'https://example.com/reset-password?token=sample-token-12345',
   supportEmail: 'support@example.com',
-  otpCode: '123456',
-  expiryTime: '15',
-  appointmentDate: '2023-06-15',
-  appointmentTime: '14:30',
-  amount: '$99.99',
-  referenceNumber: 'TRX-123456789'
+  otpCode: '000000',
+  expiryTime: '10',
+  appointmentDate: 'your scheduled date',
+  appointmentTime: 'your scheduled time',
+  amount: 'the specified amount',
+  referenceNumber: 'your reference number'
 };
+
+/**
+ * Renders a template by replacing placeholders with actual values
+ * 
+ * @param {string} template - The template string containing placeholders
+ * @param {Object} data - The data object with values to inject
+ * @returns {string} The rendered template with placeholders replaced with values
+ */
+function renderTemplate(template, data) {
+  if (!template) {
+    return '';
+  }
+  
+  // Replace all {{variableName}} occurrences with their corresponding values
+  return template.replace(/\{\{(\w+)\}\}/g, (match, key) => {
+    // Use the value from data if it exists, otherwise return the placeholder
+    return data[key] !== undefined ? data[key] : match;
+  });
+}
 
 /**
  * Determines which notification channels to use based on user preferences
@@ -294,24 +313,30 @@ function getUserNotificationChannels(email, notificationType) {
 }
 
 /**
- * Prepares notification templates for the specified channels based on user preferences
+ * Prepares and renders notification templates for the specified channels based on user preferences
  * 
  * @param {string} notificationType - The type of notification (e.g., 'welcome', 'otp')
  * @param {Array} channels - Array of channels to prepare templates for
  * @param {Object} userData - User data including language preference
- * @param {Object} data - Data to personalize the templates with
- * @returns {Object} Object containing templates for each channel
+ * @param {Object} dynamicData - Dynamic data to personalize the templates with
+ * @returns {Object} Object containing rendered templates for each channel
  */
-function prepareNotificationTemplates(notificationType, channels, userData, data) {
+function prepareNotificationTemplates(notificationType, channels, userData, dynamicData) {
   const templates = {};
   const language = userData.language || 'en';
   
-  // Merge default test data with provided data
+  // Prepare personalization data by merging default values, user data and dynamic data
   const templateData = {
-    ...DEFAULT_TEST_DATA,
-    userName: userData.name || DEFAULT_TEST_DATA.userName,
-    ...data
+    ...DEFAULT_DATA,
+    // Add user-specific information
+    userName: userData.name || dynamicData.name || DEFAULT_DATA.userName,
+    userEmail: userData.email || dynamicData.email,
+    userPhone: userData.phone || dynamicData.phone,
+    // Add any additional dynamic data provided
+    ...dynamicData
   };
+  
+  console.log(`Preparing templates with data: ${JSON.stringify(templateData, null, 2)}`);
   
   // Check if email channel is enabled and prepare email template
   if (channels.includes('email')) {
@@ -321,14 +346,19 @@ function prepareNotificationTemplates(notificationType, channels, userData, data
       console.log(`Email template not found for ${notificationType} in ${language} language`);
       templates.email = null;
     } else {
-      // In a real implementation, we would populate the template with data here
+      // Render the subject and body templates with the personalized data
+      const renderedSubject = renderTemplate(emailTemplate.subject, templateData);
+      const renderedBody = renderTemplate(emailTemplate.body, templateData);
+      
       templates.email = {
-        subject: emailTemplate.subject,
-        body: emailTemplate.body,
+        subject: renderedSubject,
+        body: renderedBody,
+        originalTemplate: emailTemplate,
         data: templateData
       };
       
-      console.log(`Prepared email template for ${notificationType} notification in ${language}`);
+      console.log(`Prepared personalized email template for ${notificationType} notification in ${language}`);
+      console.log(`Email subject: "${renderedSubject.substring(0, 30)}..."`);
     }
   }
   
@@ -340,12 +370,17 @@ function prepareNotificationTemplates(notificationType, channels, userData, data
       console.log(`SMS template not found for ${notificationType} in ${language} language`);
       templates.sms = null;
     } else {
+      // Render the SMS template with the personalized data
+      const renderedMessage = renderTemplate(smsTemplate, templateData);
+      
       templates.sms = {
-        message: smsTemplate,
+        message: renderedMessage,
+        originalTemplate: smsTemplate,
         data: templateData
       };
       
-      console.log(`Prepared SMS template for ${notificationType} notification in ${language}`);
+      console.log(`Prepared personalized SMS template for ${notificationType} notification in ${language}`);
+      console.log(`SMS message (truncated): "${renderedMessage.substring(0, 30)}..."`);
     }
   }
   
@@ -354,16 +389,16 @@ function prepareNotificationTemplates(notificationType, channels, userData, data
 
 /**
  * Processes notification for a user based on their preferences
- * and prepares appropriate templates
+ * and prepares appropriate personalized templates
  * 
  * @param {string} email - The email address of the user
  * @param {string} notificationType - The type of notification (e.g., 'welcome', 'otp')
- * @param {Object} [data={}] - Data to populate the notification templates
+ * @param {Object} [dynamicData={}] - Dynamic data to populate the notification templates
  * @returns {Promise<Object>} A result object with details about the notification preparation
  */
-function processUserNotification(email, notificationType, data = {}) {
+async function processUserNotification(email, notificationType, dynamicData = {}) {
   // Get user notification channels
-  const channelInfo = getUserNotificationChannels(email, notificationType);
+  const channelInfo = await getUserNotificationChannels(email, notificationType);
   
   if (!channelInfo.success) {
     console.log(`Cannot process notification: ${channelInfo.error}`);
@@ -386,8 +421,8 @@ function processUserNotification(email, notificationType, data = {}) {
     };
   }
   
-  // Prepare templates for enabled channels
-  const templates = prepareNotificationTemplates(notificationType, channels, userData, data);
+  // Prepare and render templates for enabled channels
+  const templates = prepareNotificationTemplates(notificationType, channels, userData, dynamicData);
   
   // Check if we have at least one valid template
   const hasValidTemplates = Object.values(templates).some(template => template !== null);
@@ -402,11 +437,11 @@ function processUserNotification(email, notificationType, data = {}) {
   }
   
   // Log success and return templates and channel info
-  console.log(`Successfully prepared ${channels.join(', ')} templates for ${email}`);
+  console.log(`Successfully prepared ${channels.join(', ')} personalized templates for ${email}`);
   
   return {
     success: true,
-    message: `Templates prepared successfully for ${channels.length} channel(s)`,
+    message: `Personalized templates prepared successfully for ${channels.length} channel(s)`,
     channels,
     userData,
     notificationType,
@@ -415,48 +450,69 @@ function processUserNotification(email, notificationType, data = {}) {
 }
 
 /**
- * Sends notifications to a user through their preferred channels
+ * Sends personalized notifications to a user through their preferred channels
  * using mock services for demonstration purposes
  * 
  * @param {string} email - The email address of the user
  * @param {string} notificationType - The type of notification (e.g., 'welcome', 'otp')
- * @param {Object} [data={}] - Data to populate the notification templates
+ * @param {Object} [dynamicData={}] - Dynamic data to populate the notification templates
  * @returns {Promise<Object>} A result object with details about the notification attempts
  */
-function sendUserNotification(email, notificationType, data = {}) {
-  // Process notification templates based on user preferences
-  const processResult = processUserNotification(email, notificationType, data);
+async function sendUserNotification(email, notificationType, dynamicData = {}) {
+  // Process and create personalized notification templates based on user preferences
+  const processResult = await processUserNotification(email, notificationType, dynamicData);
   
   if (!processResult.success) {
     return processResult;
   }
   
   const { channels, userData, templates } = processResult;
-  const results = { success: false, channels: [], results: {} };
+  const results = { 
+    success: false, 
+    channels: [],
+    results: {},
+    sentContent: {} // Store snippets of the actual content sent
+  };
   
-  // For demonstration, we'll just simulate sending through enabled channels
-  // using mock services
+  // Use mock services to send through enabled channels
   
   // Send email if enabled
   if (channels.includes('email') && templates.email) {
     try {
-      console.log(`Sending ${notificationType} email to: ${email}`);
+      console.log(`Sending personalized ${notificationType} email to: ${email}`);
       
-      // This would normally call the actual email service
-      // For now, we'll just simulate success
+      // In a real implementation, we would call an actual email service here
+      // For mock purposes, we'll log and simulate a successful send
+      
+      // This is where the actual email service would be called with the rendered templates
+      // emailService.send({
+      //   to: email,
+      //   subject: templates.email.subject,
+      //   body: templates.email.body,
+      //   isHtml: false
+      // });
+      
       results.results.email = {
         success: true,
         messageId: `mock-email-${Date.now()}`,
         sentTo: email,
-        subject: templates.email.subject
+        subject: templates.email.subject,
+        timestamp: new Date().toISOString()
       };
       
-      console.log(`Successfully sent ${notificationType} email to ${email}`);
+      // Store a preview of the rendered content
+      results.sentContent.email = {
+        subject: templates.email.subject,
+        body: templates.email.body.substring(0, 100) + (templates.email.body.length > 100 ? '...' : '')
+      };
+      
+      console.log(`Successfully sent personalized ${notificationType} email to ${email}`);
     } catch (error) {
       console.log(`Failed to send email to ${email}:`, error);
       results.results.email = {
         success: false,
-        error: error.message || 'Unknown error'
+        error: error.message || 'Unknown error',
+        timestamp: new Date().toISOString()
       };
     }
   }
@@ -464,22 +520,36 @@ function sendUserNotification(email, notificationType, data = {}) {
   // Send SMS if enabled
   if (channels.includes('sms') && templates.sms) {
     try {
-      console.log(`Sending ${notificationType} SMS to: ${userData.phone}`);
+      console.log(`Sending personalized ${notificationType} SMS to: ${userData.phone}`);
       
-      // This would normally call the actual SMS service
-      // For now, we'll just simulate success
+      // In a real implementation, we would call an actual SMS service here
+      // For mock purposes, we'll log and simulate a successful send
+      
+      // This is where the actual SMS service would be called with the rendered message
+      // smsService.send({
+      //   to: userData.phone,
+      //   message: templates.sms.message
+      // });
+      
       results.results.sms = {
         success: true,
         messageId: `mock-sms-${Date.now()}`,
-        sentTo: userData.phone
+        sentTo: userData.phone,
+        timestamp: new Date().toISOString()
       };
       
-      console.log(`Successfully sent ${notificationType} SMS to ${userData.phone}`);
+      // Store a preview of the rendered content
+      results.sentContent.sms = {
+        message: templates.sms.message.substring(0, 100) + (templates.sms.message.length > 100 ? '...' : '')
+      };
+      
+      console.log(`Successfully sent personalized ${notificationType} SMS to ${userData.phone}`);
     } catch (error) {
       console.log(`Failed to send SMS to ${userData.phone}:`, error);
       results.results.sms = {
         success: false,
-        error: error.message || 'Unknown error'
+        error: error.message || 'Unknown error',
+        timestamp: new Date().toISOString()
       };
     }
   }
@@ -497,5 +567,6 @@ module.exports = {
   getUserNotificationChannels,
   processUserNotification,
   prepareNotificationTemplates,
-  sendUserNotification
+  sendUserNotification,
+  renderTemplate
 };
