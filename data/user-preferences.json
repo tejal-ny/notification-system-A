@@ -48,5 +48,13 @@
     "updatedAt": "2025-05-30T07:01:19.893Z",
     "isDeleted": false,
     "preferredLanguage": "en"
+  },
+  "user@example.com": {
+    "emailEnabled": true,
+    "smsEnabled": true,
+    "createdAt": "2025-06-03T07:58:37.878Z",
+    "updatedAt": "2025-06-03T07:58:37.888Z",
+    "isDeleted": false,
+    "preferredLanguage": "en"
   }
 }

@@ -205,5 +205,6 @@ const send = errorHandler.withErrorHandling(sendEmail, 'email');
 module.exports = {
   sendEmail,
   send,
-  validateEmailInput  // Export the validation function for testing
+  validateEmailInput,  // Export the validation function for testing
+  sendEmailMock
 };
