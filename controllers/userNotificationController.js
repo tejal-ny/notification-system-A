@@ -821,6 +821,7 @@ const sendNotificationByPreference = async (email, notificationType, data = {}, 
  * @param {Object} [options={}] - Additional options for notification delivery
  * @param {boolean} [options.failFast=false] - If true, stops processing on first failure
  * @param {boolean} [options.parallelSend=true] - If true, sends notifications in parallel
+ * @param {boolean} [options.validateTemplatesFirst=true] - If true, validates templates before processing
  * @returns {Promise<Object>} Detailed results of the batch operation
  */
 const sendBatchNotifications = async (emails, notificationType, data = {}, options = {}) => {
@@ -831,6 +832,7 @@ const sendBatchNotifications = async (emails, notificationType, data = {}, optio
       success: false,
       error: 'An array of email addresses is required',
       processedCount: 0,
+      statusCounts: { success: 0, skipped: 0, failed: 0 },
       results: []
     };
   }
@@ -841,6 +843,7 @@ const sendBatchNotifications = async (emails, notificationType, data = {}, optio
       success: false,
       error: 'Notification type is required',
       processedCount: 0,
+      statusCounts: { success: 0, skipped: 0, failed: 0 },
       results: []
     };
   }
@@ -849,14 +852,47 @@ const sendBatchNotifications = async (emails, notificationType, data = {}, optio
   const { 
     failFast = false, 
     parallelSend = true,
+    validateTemplatesFirst = true,
     ...notificationOptions 
   } = options;
+
+  // Pre-validate templates if requested
+  if (validateTemplatesFirst) {
+    console.log('Pre-validating templates for notification type:', notificationType);
+    // Check if email template exists (using default language)
+    const emailTemplate = getTemplate('email', notificationType, 'en');
+    if (!emailTemplate) {
+      console.log(`Email template not found for type '${notificationType}'`);
+      return {
+        success: false,
+        error: `Email template not found for type '${notificationType}'`,
+        processedCount: 0,
+        statusCounts: { success: 0, skipped: 0, failed: emails.length },
+        results: emails.map(email => ({
+          email,
+          status: 'failed',
+          success: false,
+          error: `Email template not found for type '${notificationType}'`,
+          channels: []
+        }))
+      };
+    }
+    
+    // Check if SMS template exists (using default language)
+    const smsTemplate = getTemplate('sms', notificationType, 'en');
+    if (!smsTemplate) {
+      console.log(`SMS template not found for type '${notificationType}' - SMS notifications may be skipped`);
+    }
+  }
 
   console.log(`Starting batch notification of type "${notificationType}" to ${emails.length} recipients`);
   
   const startTime = Date.now();
-  let successCount = 0;
-  let failureCount = 0;
+  const statusCounts = {
+    success: 0,
+    skipped: 0,
+    failed: 0
+  };
   
   // Results container
   const results = [];
@@ -864,11 +900,22 @@ const sendBatchNotifications = async (emails, notificationType, data = {}, optio
   try {
     // Process notifications in parallel or sequentially based on options
     if (parallelSend) {
-      console.log('Processing notifications in parallel');
       // Map each email to a notification promise and process all in parallel
       const notificationPromises = emails.map(async (email) => {
-        console.log(`Processing notification for ${email}`);
         try {
+          // Check if email is valid before proceeding
+          if (!email || typeof email !== 'string' || !email.includes('@')) {
+            statusCounts.failed++;
+            console.log(`Invalid email address format: ${email}`);
+            return {
+              email: email || 'invalid-email',
+              status: 'failed',
+              success: false,
+              error: 'Invalid email address format',
+              channels: []
+            };
+          }
+          
           const result = await sendNotificationByPreference(
             email, 
             notificationType, 
@@ -876,26 +923,43 @@ const sendBatchNotifications = async (emails, notificationType, data = {}, optio
             notificationOptions
           );
           
-          // Track individual result
-          const userResult = {
-            email,
-            ...result
-          };
+          // Determine the status based on the result
+          let status;
           
           if (result.success) {
-            successCount++;
+            status = 'success';
+            statusCounts.success++;
             console.log(`Successfully sent ${notificationType} notification to ${email}`);
+          } else if (result.error === 'No notification channels enabled for this notification type') {
+            status = 'skipped';
+            statusCounts.skipped++;
+            console.log(`User ${email} not opted-in for ${notificationType} notifications - skipped`);
+          } else if (result.error === 'User preferences not found') {
+            status = 'skipped';
+            statusCounts.skipped++;
+            console.log(`User preferences not found for ${email} - skipped`);
+          } else if (result.results && Object.values(result.results).some(r => r.error === 'Template not found')) {
+            status = 'failed';
+            statusCounts.failed++;
+            console.log(`Template not found for ${notificationType} notification to ${email}`);
           } else {
-            failureCount++;
-            // console.log(`Failed to send ${notificationType} notification to ${email}: ${result.error || 'Unknown error'}`);
+            status = 'failed';
+            statusCounts.failed++;
+            console.log(`Failed to send ${notificationType} notification to ${email}: ${result.error || 'Unknown error'}`);
           }
           
-          return userResult;
+          // Return the enhanced user result
+          return {
+            email,
+            status,
+            ...result
+          };
         } catch (error) {
-          failureCount++;
+          statusCounts.failed++;
           console.log(`Exception while processing notification for ${email}:`, error);
           return {
             email,
+            status: 'failed',
             success: false,
             error: error.message || 'Unknown error',
             channels: []
@@ -910,6 +974,29 @@ const sendBatchNotifications = async (emails, notificationType, data = {}, optio
       // Process sequentially
       for (const email of emails) {
         try {
+          // Check if email is valid before proceeding
+          if (!email || typeof email !== 'string' || !email.includes('@')) {
+            statusCounts.failed++;
+            console.log(`Invalid email address format: ${email}`);
+            
+            const userResult = {
+              email: email || 'invalid-email',
+              status: 'failed',
+              success: false,
+              error: 'Invalid email address format',
+              channels: []
+            };
+            
+            results.push(userResult);
+            
+            if (failFast) {
+              console.log(`Stopping batch processing due to failFast option after invalid email: ${email}`);
+              break;
+            }
+            
+            continue;
+          }
+          
           const result = await sendNotificationByPreference(
             email, 
             notificationType, 
@@ -917,35 +1004,57 @@ const sendBatchNotifications = async (emails, notificationType, data = {}, optio
             notificationOptions
           );
           
-          // Track individual result
+          // Determine the status based on the result
+          let status;
+          
+          if (result.success) {
+            status = 'success';
+            statusCounts.success++;
+            console.log(`Successfully sent ${notificationType} notification to ${email}`);
+          } else if (result.error === 'No notification channels enabled for this notification type') {
+            status = 'skipped';
+            statusCounts.skipped++;
+            console.log(`User ${email} not opted-in for ${notificationType} notifications - skipped`);
+          } else if (result.error === 'User preferences not found') {
+            status = 'skipped';
+            statusCounts.skipped++;
+            console.log(`User preferences not found for ${email} - skipped`);
+          } else if (result.results && Object.values(result.results).some(r => r.error === 'Template not found')) {
+            status = 'failed';
+            statusCounts.failed++;
+            console.log(`Template not found for ${notificationType} notification to ${email}`);
+          } else {
+            status = 'failed';
+            statusCounts.failed++;
+            console.log(`Failed to send ${notificationType} notification to ${email}: ${result.error || 'Unknown error'}`);
+          }
+          
+          // Add the enhanced user result
           const userResult = {
             email,
+            status,
             ...result
           };
           
           results.push(userResult);
           
-          if (result.success) {
-            successCount++;
-            console.log(`Successfully sent ${notificationType} notification to ${email}`);
-          } else {
-            failureCount++;
-            console.log(`Failed to send ${notificationType} notification to ${email}: ${result.error || 'Unknown error'}`);
-            
-            // Stop processing if failFast is enabled and we had a failure
-            if (failFast) {
-              console.log(`Stopping batch processing due to failFast option after failure for ${email}`);
-              break;
-            }
+          // Stop processing if failFast is enabled and we had a failure
+          if (failFast && status === 'failed') {
+            console.log(`Stopping batch processing due to failFast option after failure for ${email}`);
+            break;
           }
         } catch (error) {
-          failureCount++;
-          results.push({
+          statusCounts.failed++;
+          
+          const userResult = {
             email,
+            status: 'failed',
             success: false,
             error: error.message || 'Unknown error',
             channels: []
-          });
+          };
+          
+          results.push(userResult);
           
           console.log(`Exception while processing notification for ${email}:`, error);
           
@@ -962,9 +1071,8 @@ const sendBatchNotifications = async (emails, notificationType, data = {}, optio
     return {
       success: false,
       error: `Batch processing error: ${error.message || 'Unknown error'}`,
-      processedCount: successCount + failureCount,
-      successCount,
-      failureCount,
+      processedCount: statusCounts.success + statusCounts.skipped + statusCounts.failed,
+      statusCounts,
       results
     };
   }
@@ -972,15 +1080,15 @@ const sendBatchNotifications = async (emails, notificationType, data = {}, optio
   const endTime = Date.now();
   const processingTime = (endTime - startTime) / 1000; // in seconds
   
-  // console.log(
-    // `Batch notification complete: ${successCount} succeeded, ${failureCount} failed, took ${processingTime.toFixed(2)}s`
-  // );
+  console.log(
+    `Batch notification complete: ${statusCounts.success} succeeded, ${statusCounts.skipped} skipped, ` +
+    `${statusCounts.failed} failed, took ${processingTime.toFixed(2)}s`
+  );
   
   return {
-    success: successCount > 0,
-    processedCount: successCount + failureCount,
-    successCount,
-    failureCount,
+    success: statusCounts.success > 0,
+    processedCount: statusCounts.success + statusCounts.skipped + statusCounts.failed,
+    statusCounts,
     processingTimeSeconds: processingTime,
     results
   };
