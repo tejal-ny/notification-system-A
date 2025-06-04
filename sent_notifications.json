@@ -1,14 +1,5 @@
 [
   {
-    "notificationId": 1749038985451,
-    "userId": "user123",
-    "channel": "email",
-    "message": "Welcome message",
-    "recipient": "tejal@example.com",
-    "status": "sent",
-    "timestamp": "2025-06-04T12:09:45.452Z"
-  },
-  {
     "notificationId": 1749039426112,
     "userId": "user123",
     "channel": "email",
@@ -16,6 +7,32 @@
     "recipient": "tejal@example.com",
     "status": "sent",
     "timestamp": "2025-06-04T12:17:06.112Z",
+    "metadata": {
+      "orderId": "order123",
+      "priority": "high"
+    }
+  },
+  {
+    "notificationId": 1749039698044,
+    "userId": "user123",
+    "channel": "email",
+    "message": "Welcome message",
+    "recipient": "tejal@example.com",
+    "status": "sent",
+    "timestamp": "2025-06-04T12:21:38.044Z",
+    "metadata": {
+      "orderId": "order123",
+      "priority": "high"
+    }
+  },
+  {
+    "notificationId": 1749039714290,
+    "userId": "user123",
+    "channel": "email",
+    "message": "Welcome message",
+    "recipient": "tejal@example.com",
+    "status": "sent",
+    "timestamp": "2025-06-04T12:21:54.290Z",
     "metadata": {
       "orderId": "order123",
       "priority": "high"
