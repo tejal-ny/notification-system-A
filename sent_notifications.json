@@ -27,5 +27,14 @@
     "message": "Welcome message",
     "status": "sent",
     "timestamp": "2025-06-04T11:50:09.074Z"
+  },
+  {
+    "notificationId": 1749038207564,
+    "userId": "user123",
+    "channel": "email",
+    "message": "Welcome message",
+    "recipient": "tejal@example.com",
+    "status": "sent",
+    "timestamp": "2025-06-04T11:56:47.564Z"
   }
 ]
