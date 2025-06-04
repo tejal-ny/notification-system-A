@@ -31,26 +31,41 @@ const NOTIFICATION_FILE = 'sent_notifications.json';
  */
 function trackNotification({ userId, channel, message, recipient, status, timestamp, metadata }) {
     // Generate a unique notification ID using current timestamp
-    const notificationId = Date.now();
-    
-    // Use provided timestamp or generate one if not provided
-    const notificationTimestamp = timestamp || new Date().toISOString();
-    
-    // Create the complete notification object with ID and status
-    const notification = {
-      notificationId,
-      userId,
-      channel,
-      message,
-      recipient, // The contact detail the message was sent to
-      status, // This should be either 'sent' or 'failed'
-      timestamp: notificationTimestamp
-    };
-    
-    // Add metadata if provided
-    if (metadata && typeof metadata === 'object') {
-      notification.metadata = metadata;
-    }
+  const notificationId = Date.now();
+  
+  // Use provided timestamp or generate one if not provided
+  const notificationTimestamp = timestamp || new Date().toISOString();
+  
+  // Check if message exceeds character limit and needs truncation
+  const MESSAGE_CHAR_LIMIT = 100;
+  let truncated = false;
+  let processedMessage = message;
+  
+  if (message && message.length > MESSAGE_CHAR_LIMIT) {
+    processedMessage = message.substring(0, MESSAGE_CHAR_LIMIT);
+    truncated = true;
+  }
+  
+  // Create the complete notification object with ID and status
+  const notification = {
+    notificationId,
+    userId,
+    channel,
+    message: processedMessage,
+    recipient, // The contact detail the message was sent to
+    status, // This should be either 'sent' or 'failed'
+    timestamp: notificationTimestamp
+  };
+  
+  // Add truncation indicator if message was shortened
+  if (truncated) {
+    notification.truncated = true;
+  }
+  
+  // Add metadata if provided
+  if (metadata && typeof metadata === 'object') {
+    notification.metadata = metadata;
+  }
     
     // Log to console for debugging
   console.log(notification);

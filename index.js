@@ -84,7 +84,7 @@ if (require.main === module) {
     notificationId: 1717636799123,
     userId: "user123",
     channel: "email",
-    message: "Welcome message",
+    message: "Welcome message Welcome message Welcome message Welcome message Welcome message Welcome message Welcome message Welcome message Welcome message Welcome message Welcome message Welcome message Welcome message Welcome message Welcome message Welcome message Welcome message Welcome message Welcome message Welcome message Welcome message Welcome message Welcome message Welcome message Welcome message Welcome message Welcome message Welcome message Welcome message Welcome message Welcome message Welcome message Welcome message Welcome message Welcome message Welcome message Welcome message Welcome message Welcome message Welcome message Welcome message ",
     recipient: "tejal@example.com",
     // timestamp: "2025-06-03T21:30:00Z",
     status: "sent",

@@ -1,18 +1,5 @@
 [
   {
-    "notificationId": 1749039426112,
-    "userId": "user123",
-    "channel": "email",
-    "message": "Welcome message",
-    "recipient": "tejal@example.com",
-    "status": "sent",
-    "timestamp": "2025-06-04T12:17:06.112Z",
-    "metadata": {
-      "orderId": "order123",
-      "priority": "high"
-    }
-  },
-  {
     "notificationId": 1749039698044,
     "userId": "user123",
     "channel": "email",
@@ -33,6 +20,20 @@
     "recipient": "tejal@example.com",
     "status": "sent",
     "timestamp": "2025-06-04T12:21:54.290Z",
+    "metadata": {
+      "orderId": "order123",
+      "priority": "high"
+    }
+  },
+  {
+    "notificationId": 1749040078725,
+    "userId": "user123",
+    "channel": "email",
+    "message": "Welcome message Welcome message Welcome message Welcome message Welcome message Welcome message Welc",
+    "recipient": "tejal@example.com",
+    "status": "sent",
+    "timestamp": "2025-06-04T12:27:58.725Z",
+    "truncated": true,
     "metadata": {
       "orderId": "order123",
       "priority": "high"
