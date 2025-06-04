@@ -1,40 +1,11 @@
 [
   {
-    "userId": "example-user",
-    "channel": "email",
-    "message": "This is a test notification",
-    "timestamp": "2025-06-04T10:42:09.780Z"
-  },
-  {
-    "notificationId": 1749036539898,
-    "userId": "user123",
-    "channel": "email",
-    "message": "Welcome message",
-    "timestamp": "2025-06-03T21:30:00Z"
-  },
-  {
-    "notificationId": 1749037430378,
-    "userId": "user123",
-    "channel": "email",
-    "message": "Welcome message",
-    "timestamp": "2025-06-03T21:30:00Z",
-    "status": "sent"
-  },
-  {
-    "notificationId": 1749037809074,
-    "userId": "user123",
-    "channel": "email",
-    "message": "Welcome message",
-    "status": "sent",
-    "timestamp": "2025-06-04T11:50:09.074Z"
-  },
-  {
-    "notificationId": 1749038207564,
+    "notificationId": 1749038985451,
     "userId": "user123",
     "channel": "email",
     "message": "Welcome message",
     "recipient": "tejal@example.com",
     "status": "sent",
-    "timestamp": "2025-06-04T11:56:47.564Z"
+    "timestamp": "2025-06-04T12:09:45.452Z"
   }
 ]

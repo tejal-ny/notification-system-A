@@ -47,17 +47,26 @@ function trackNotification({ userId, channel, message, recipient, status, timest
     };
     
     // Log to console for debugging
-    console.log(notification);
+  console.log(notification);
+  
+  // Store the notification in the file, with robust error handling
+  try {
+    let notifications = [];
     
-    // Store the notification in the file
+    // File operations wrapped in try/catch
     try {
-      let notifications = [];
-      
       // Check if file exists
       if (fs.existsSync(NOTIFICATION_FILE)) {
         // Read existing notifications
         const fileContent = fs.readFileSync(NOTIFICATION_FILE, 'utf8');
+        // Parse the file content (potential JSON parse error)
         notifications = JSON.parse(fileContent);
+        
+        // Validate that we got an array
+        if (!Array.isArray(notifications)) {
+          console.error('Error: notification file does not contain an array');
+          notifications = []; // Reset to empty array
+        }
       }
       
       // Add new notification
@@ -65,9 +74,20 @@ function trackNotification({ userId, channel, message, recipient, status, timest
       
       // Write back to file
       fs.writeFileSync(NOTIFICATION_FILE, JSON.stringify(notifications, null, 2), 'utf8');
-    } catch (error) {
-      console.error('Error storing notification:', error);
+    } catch (fileError) {
+      // Handle specific file operation errors
+      if (fileError instanceof SyntaxError) {
+        console.error('Error parsing notification file JSON:', fileError);
+      } else {
+        console.error('Error accessing or writing to notification file:', fileError);
+      }
+      // Continue execution without throwing
     }
+  } catch (error) {
+    // Catch any other unexpected errors
+    console.error('Unexpected error during notification storage:', error);
+    // Function continues execution
+  }
   }
 
 module.exports = { trackNotification };
