@@ -37,13 +37,13 @@
   },
   "tejal2@example.com": {
     "emailEnabled": true,
-    "smsEnabled": false,
+    "smsEnabled": true,
     "createdAt": "2025-05-30T06:35:30.554Z",
     "updatedAt": "2025-05-30T06:35:30.555Z"
   },
   "tejal3@example.com": {
     "emailEnabled": true,
-    "smsEnabled": false,
+    "smsEnabled": true,
     "createdAt": "2025-05-30T07:01:19.885Z",
     "updatedAt": "2025-05-30T07:01:19.893Z",
     "isDeleted": false,

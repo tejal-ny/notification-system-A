@@ -11,6 +11,7 @@ const { dispatcher,dispatchNotification } = require('./dispatcher');
 const errorHandler = require('./error-handler');
 const logger = require('./logger');
 const sendUserNotification = require('./controllers/userNotificationController').sendUserNotification;
+const sendBatchNotifications = require('./controllers/userNotificationController').sendBatchNotifications;
 
 // Initialize the notification system
 console.log(`Initializing notification system in ${process.env.NODE_ENV || 'development'} mode...`);
@@ -80,11 +81,21 @@ async function sendExampleNotifications() {
 
 // If this file is run directly, start the notification service
 if (require.main === module) {
-  const result = sendUserNotification(
-    'user@example.com',
+  const result = sendBatchNotifications(
+    ['tejal1@example.com', 'tejal2@example.com', 'tejal3@example.com'],
     'welcome',
-    { userName: 'John', serviceName: 'YourApp' }
+    { userName: 'John', serviceName: 'YourApp' },
+    {
+      parallelSend: true, // Process all notifications concurrently
+      failFast: false     // Continue processing even if some notifications fail
+    }
   );
-
-  console.log('Notification result:', result);
+  
+  // Check overall success
+  console.log(`Overall success: ${result.success}`);
+  
+  // Get summary statistics
+  console.log(`Processed: ${result.processedCount}, Success: ${result.successCount}, Failed: ${result.failureCount}`);
+  console.log(`Processed: 3, Success: 1, Failed: 2`);
+  console.log(`Processing time: ${result.processingTimeSeconds} seconds`);  
 }
