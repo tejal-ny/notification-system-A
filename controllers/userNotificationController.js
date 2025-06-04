@@ -141,9 +141,11 @@ function determineNotificationChannels(email, notificationType) {
  * Sends a notification to a user based on their communication preferences
  * 
  * @param {string} email - The email address of the user
- * @param {string} notificationType - The type of notification (e.g., 'otp', 'welcome')
+ * @param {string} notificationType - The type of notification (e.g., 'welcome', 'otp')
  * @param {Object} [data={}] - Data to populate the notification templates
- * @returns {Promise<Object>} Results of the notification attempts
+ * @param {Object} [options={}] - Additional options for notification delivery
+ * @param {boolean} [options.forceSend=false] - If true, sends notification regardless of user's opt-in preferences
+ * @returns {Promise<Object>} An object containing the results of notification attempts
  */
 function sendNotification(email, notificationType, data = {}) {
   // First determine which channels we can use
@@ -717,14 +719,32 @@ const sendNotificationByPreference = async (email, notificationType, data = {}, 
     channels.push('sms');
   }
 
-  // If no channels are enabled for this notification type, return early
+  // Check if forceSend is enabled to override user preferences
+  const { forceSend = false } = options;
+  
+  // If no channels are enabled for this notification type
   if (channels.length === 0) {
-    console.log(`User ${email} has not opted in to receive ${notificationType} notifications on any channel`);
-    return {
-      success: false,
-      error: 'No notification channels enabled for this notification type',
-      channels: []
-    };
+    // If forceSend is true, use available channels despite preferences
+    if (forceSend) {
+      console.log(`User ${email} has not opted in to receive ${notificationType} notifications, but forceSend is enabled - overriding preferences`);
+      
+      // Use email by default when forcing
+      channels.push('email');
+      
+      // Add SMS if phone number is available
+      if (userPrefs.phone) {
+        channels.push('sms');
+      }
+    } else {
+      // Normal behavior - respect preferences and return early
+      console.log(`User ${email} has not opted in to receive ${notificationType} notifications on any channel`);
+      return {
+        success: false,
+        error: 'No notification channels enabled for this notification type',
+        channels: [],
+        preferencesRespected: true
+      };
+    }
   }
 
   // Send notifications through each enabled channel
@@ -804,6 +824,11 @@ const sendNotificationByPreference = async (email, notificationType, data = {}, 
   // Mark overall success if at least one channel succeeded
   results.success = Object.values(results.results).some(result => result.success);
   results.channels = channels;
+  
+  // Indicate if preferences were overridden
+  if (options.forceSend) {
+    results.preferencesOverridden = true;
+  }
 
   return results;
 };
@@ -822,6 +847,7 @@ const sendNotificationByPreference = async (email, notificationType, data = {}, 
  * @param {boolean} [options.failFast=false] - If true, stops processing on first failure
  * @param {boolean} [options.parallelSend=true] - If true, sends notifications in parallel
  * @param {boolean} [options.validateTemplatesFirst=true] - If true, validates templates before processing
+ * @param {boolean} [options.forceSend=false] - If true, sends notifications regardless of user opt-in preferences
  * @returns {Promise<Object>} Detailed results of the batch operation
  */
 const sendBatchNotifications = async (emails, notificationType, data = {}, options = {}) => {
@@ -853,8 +879,15 @@ const sendBatchNotifications = async (emails, notificationType, data = {}, optio
     failFast = false, 
     parallelSend = true,
     validateTemplatesFirst = true,
+    forceSend = false,
     ...notificationOptions 
   } = options;
+
+  // Include forceSend in notification options if specified
+  if (forceSend) {
+    notificationOptions.forceSend = true;
+    console.log(`forceSend option is enabled - user preferences will be overridden for this batch`);
+  }
 
   // Pre-validate templates if requested
   if (validateTemplatesFirst) {
@@ -929,11 +962,23 @@ const sendBatchNotifications = async (emails, notificationType, data = {}, optio
           if (result.success) {
             status = 'success';
             statusCounts.success++;
-            console.log(`Successfully sent ${notificationType} notification to ${email}`);
+            
+            if (result.preferencesOverridden) {
+              console.log(`Successfully sent ${notificationType} notification to ${email} (preferences were overridden due to forceSend)`);
+            } else {
+              console.log(`Successfully sent ${notificationType} notification to ${email}`);
+            }
           } else if (result.error === 'No notification channels enabled for this notification type') {
-            status = 'skipped';
-            statusCounts.skipped++;
-            console.log(`User ${email} not opted-in for ${notificationType} notifications - skipped`);
+            // This should not happen with forceSend=true, but just in case
+            status = forceSend ? 'failed' : 'skipped';
+            
+            if (forceSend) {
+              statusCounts.failed++;
+              console.log(`Failed to send to ${email} despite forceSend being enabled`);
+            } else {
+              statusCounts.skipped++;
+              console.log(`User ${email} not opted-in for ${notificationType} notifications - skipped`);
+            }
           } else if (result.error === 'User preferences not found') {
             status = 'skipped';
             statusCounts.skipped++;
@@ -952,6 +997,7 @@ const sendBatchNotifications = async (emails, notificationType, data = {}, optio
           return {
             email,
             status,
+            preferencesOverridden: result.preferencesOverridden || false,
             ...result
           };
         } catch (error) {
@@ -1010,11 +1056,23 @@ const sendBatchNotifications = async (emails, notificationType, data = {}, optio
           if (result.success) {
             status = 'success';
             statusCounts.success++;
-            console.log(`Successfully sent ${notificationType} notification to ${email}`);
+            
+            if (result.preferencesOverridden) {
+              console.log(`Successfully sent ${notificationType} notification to ${email} (preferences were overridden due to forceSend)`);
+            } else {
+              console.log(`Successfully sent ${notificationType} notification to ${email}`);
+            }
           } else if (result.error === 'No notification channels enabled for this notification type') {
-            status = 'skipped';
-            statusCounts.skipped++;
-            console.log(`User ${email} not opted-in for ${notificationType} notifications - skipped`);
+            // This should not happen with forceSend=true, but just in case
+            status = forceSend ? 'failed' : 'skipped';
+            
+            if (forceSend) {
+              statusCounts.failed++;
+              console.log(`Failed to send to ${email} despite forceSend being enabled`);
+            } else {
+              statusCounts.skipped++;
+              console.log(`User ${email} not opted-in for ${notificationType} notifications - skipped`);
+            }
           } else if (result.error === 'User preferences not found') {
             status = 'skipped';
             statusCounts.skipped++;
@@ -1033,6 +1091,7 @@ const sendBatchNotifications = async (emails, notificationType, data = {}, optio
           const userResult = {
             email,
             status,
+            preferencesOverridden: result.preferencesOverridden || false,
             ...result
           };
           
@@ -1073,15 +1132,19 @@ const sendBatchNotifications = async (emails, notificationType, data = {}, optio
       error: `Batch processing error: ${error.message || 'Unknown error'}`,
       processedCount: statusCounts.success + statusCounts.skipped + statusCounts.failed,
       statusCounts,
-      results
+      results,
+      forceSendEnabled: forceSend
     };
   }
   
   const endTime = Date.now();
   const processingTime = (endTime - startTime) / 1000; // in seconds
   
+  // Include info about forceSend in the log message if it was enabled
+  const forceSendInfo = forceSend ? " (with forced delivery)" : "";
+  
   console.log(
-    `Batch notification complete: ${statusCounts.success} succeeded, ${statusCounts.skipped} skipped, ` +
+    `Batch notification complete${forceSendInfo}: ${statusCounts.success} succeeded, ${statusCounts.skipped} skipped, ` +
     `${statusCounts.failed} failed, took ${processingTime.toFixed(2)}s`
   );
   
@@ -1090,9 +1153,11 @@ const sendBatchNotifications = async (emails, notificationType, data = {}, optio
     processedCount: statusCounts.success + statusCounts.skipped + statusCounts.failed,
     statusCounts,
     processingTimeSeconds: processingTime,
+    forceSendEnabled: forceSend,
     results
   };
 };
+
 
 module.exports = {
   determineNotificationChannels,
