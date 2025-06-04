@@ -26,9 +26,10 @@ const NOTIFICATION_FILE = 'sent_notifications.json';
  * @param {string} notificationData.recipient - The contact detail the message was sent to (e.g., email address, phone number)
  * @param {string} notificationData.status - The status of the notification ('sent' or 'failed')
  * @param {string|number} [notificationData.timestamp] - The timestamp when the notification was sent (optional, generated if not provided)
+ * @param {Object} [notificationData.metadata] - Optional object containing additional key-value pairs (e.g., orderId, priority)
  * @returns {void}
  */
-function trackNotification({ userId, channel, message, recipient, status, timestamp }) {
+function trackNotification({ userId, channel, message, recipient, status, timestamp, metadata }) {
     // Generate a unique notification ID using current timestamp
     const notificationId = Date.now();
     
@@ -45,6 +46,11 @@ function trackNotification({ userId, channel, message, recipient, status, timest
       status, // This should be either 'sent' or 'failed'
       timestamp: notificationTimestamp
     };
+    
+    // Add metadata if provided
+    if (metadata && typeof metadata === 'object') {
+      notification.metadata = metadata;
+    }
     
     // Log to console for debugging
   console.log(notification);

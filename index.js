@@ -87,6 +87,10 @@ if (require.main === module) {
     message: "Welcome message",
     recipient: "tejal@example.com",
     // timestamp: "2025-06-03T21:30:00Z",
-    status: "sent"
+    status: "sent",
+    metadata: {
+      orderId: "order123",
+      priority: "high"
+    }
   });
 }
