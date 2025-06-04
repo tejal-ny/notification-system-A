@@ -631,6 +631,31 @@ async function sendUserNotification(email, notificationType, dynamicData = {}) {
   results.success = Object.values(results.results).some(result => result.success);
   results.channels = channels;
   
+  // Add error summary if any channel failed
+  const failedChannels = Object.entries(results.results)
+    .filter(([_, result]) => !result.success)
+    .map(([channel, result]) => ({
+      channel,
+      error: result.error,
+      errorType: result.errorType || 'unknown'
+    }));
+    
+  if (failedChannels.length > 0) {
+    results.failedChannels = failedChannels;
+    
+    // Log a summary of failures
+    const failureSummary = failedChannels
+      .map(f => `${f.channel} (${f.errorType}): ${f.error}`)
+      .join('; ');
+      
+    console.log(`Notification had ${failedChannels.length} delivery failures: ${failureSummary}`);
+  }
+  
+  // Record notification attempt for audit purposes
+  console.log(`Notification attempt complete for ${email}, type: ${notificationType}, ` +
+    `success: ${results.success}, channels attempted: ${channels.length}, ` +
+    `channels succeeded: ${Object.values(results.results).filter(r => r.success).length}`);
+  
   return results;
 }
 
