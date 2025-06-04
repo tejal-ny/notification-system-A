@@ -145,6 +145,8 @@ function determineNotificationChannels(email, notificationType) {
  * @param {Object} [data={}] - Data to populate the notification templates
  * @param {Object} [options={}] - Additional options for notification delivery
  * @param {boolean} [options.forceSend=false] - If true, sends notification regardless of user's opt-in preferences
+ * @param {boolean} [options.combinedOnly=false] - If true, sends to both email and SMS only if both are viable, otherwise uses a single channel
+ * @param {boolean} [options.requireAllChannels=false] - If true, fails if any requested channel can't be sent (implies combinedOnly)
  * @returns {Promise<Object>} An object containing the results of notification attempts
  */
 function sendNotification(email, notificationType, data = {}) {
@@ -719,8 +721,15 @@ const sendNotificationByPreference = async (email, notificationType, data = {}, 
     channels.push('sms');
   }
 
-  // Check if forceSend is enabled to override user preferences
-  const { forceSend = false } = options;
+  // Extract options
+  const { 
+    forceSend = false, 
+    combinedOnly = false, 
+    requireAllChannels = false 
+  } = options;
+  
+  // Combined mode requires both channels if specified
+  const combinedMode = combinedOnly || requireAllChannels;
   
   // If no channels are enabled for this notification type
   if (channels.length === 0) {
@@ -744,6 +753,102 @@ const sendNotificationByPreference = async (email, notificationType, data = {}, 
         channels: [],
         preferencesRespected: true
       };
+    }
+  }
+  
+  // Handle combinedOnly and requireAllChannels options
+  if (combinedMode && !forceSend) {
+    // For combined mode, check if both email and SMS are available in user preferences
+    const hasEmailChannel = channels.includes('email');
+    const hasSmsChannel = channels.includes('sms');
+    const hasBothChannels = hasEmailChannel && hasSmsChannel;
+    
+    // For combined mode, also pre-check if templates exist for both channels
+    // This prevents starting a notification process that can't be completed
+    if (hasBothChannels || requireAllChannels) {
+      let emailTemplateExists = false;
+      let smsTemplateExists = false;
+      
+      try {
+        // Check for email template (with fallback)
+        const preferredLanguage = userPrefs.language || 'en';
+        const emailTemplate = getTemplate('email', notificationType, preferredLanguage) || 
+                              (preferredLanguage !== 'en' ? getTemplate('email', notificationType, 'en') : null);
+        emailTemplateExists = !!emailTemplate;
+        
+        // Check for SMS template (with fallback)
+        const smsTemplate = getTemplate('sms', notificationType, preferredLanguage) || 
+                           (preferredLanguage !== 'en' ? getTemplate('sms', notificationType, 'en') : null);
+        smsTemplateExists = !!smsTemplate;
+        
+        // Log template availability 
+        console.log(`Template availability for ${notificationType}: Email=${emailTemplateExists}, SMS=${smsTemplateExists}`);
+        
+        // Handle case where templates aren't available for combined mode
+        if (requireAllChannels && (!emailTemplateExists || !smsTemplateExists)) {
+          console.log(`Cannot send ${notificationType} notification to ${email}: templates not available for all required channels`);
+          return {
+            success: false,
+            error: 'Templates not available for all required channels',
+            requestedCombined: true,
+            emailTemplateExists,
+            smsTemplateExists,
+            channels
+          };
+        }
+        
+        // If combinedOnly and templates aren't available for both, adjust channels
+        if (combinedOnly && !(emailTemplateExists && smsTemplateExists)) {
+          console.log(`Combined notification requested but templates not available for both channels`);
+          
+          // Adjust available channels based on template availability
+          const updatedChannels = [];
+          if (hasEmailChannel && emailTemplateExists) updatedChannels.push('email');
+          if (hasSmsChannel && smsTemplateExists) updatedChannels.push('sms');
+          
+          // Update channels list
+          channels.length = 0;
+          channels.push(...updatedChannels);
+          
+          console.log(`Proceeding with available channels: ${channels.join(', ')}`);
+        }
+      } catch (error) {
+        console.log(`Error checking template availability: ${error.message}`, error);
+        // Continue with existing channels if there's an error checking templates
+      }
+    }
+    
+    // After template checks, re-evaluate if we have both channels
+    const finalHasBothChannels = channels.includes('email') && channels.includes('sms');
+    
+    // If combinedOnly is true and we still don't have both channels
+    if ((combinedOnly || requireAllChannels) && !finalHasBothChannels) {
+      // Use whatever channels are available unless requireAllChannels is true
+      if (requireAllChannels) {
+        console.log(`User ${email} doesn't have all required channels available for ${notificationType} notification`);
+        return {
+          success: false,
+          error: 'Not all required notification channels are available',
+          requestedCombined: true,
+          channels: channels,
+          availableChannels: channels
+        };
+      } else if (channels.length > 0) {
+        console.log(`Combined notification requested for ${email}, but only ${channels.join(', ')} available - proceeding with available channels`);
+      } else {
+        console.log(`No viable channels available for ${notificationType} notification to ${email}`);
+        return {
+          success: false,
+          error: 'No viable channels available for notification',
+          requestedCombined: true,
+          channels: []
+        };
+      }
+    }
+    
+    // Log if we're proceeding with combined notification
+    if (finalHasBothChannels) {
+      console.log(`Sending combined (email+SMS) notification to ${email} for ${notificationType}`);
     }
   }
 
@@ -794,7 +899,7 @@ const sendNotificationByPreference = async (email, notificationType, data = {}, 
           }
           
           // Send email using mock service
-          const emailResult = await notifier.dispatch({
+          const emailResult = mockEmailService.sendEmailMock({
             type: 'email',
             recipient: email,
             subject: template.subject,
@@ -886,7 +991,7 @@ const sendNotificationByPreference = async (email, notificationType, data = {}, 
           }
           
           // Send SMS using mock service
-          const smsResult = await notifier.dispatch({
+          const smsResult = mockSmsService.sendSmsMock({
             type: 'sms',
             recipient: phone,
             message: template,
@@ -956,6 +1061,26 @@ const sendNotificationByPreference = async (email, notificationType, data = {}, 
   results.success = Object.values(results.results).some(result => result.success);
   results.channels = channels;
   
+  // Add combined notification information
+  if (combinedMode) {
+    const hasBothChannels = channels.includes('email') && channels.includes('sms');
+    results.requestedCombined = combinedOnly || requireAllChannels;
+    results.requiredAllChannels = requireAllChannels;
+    results.combinedDelivery = hasBothChannels && 
+                               results.results.email?.success && 
+                               results.results.sms?.success;
+    results.partialDelivery = !results.combinedDelivery && results.success;
+    
+    if (results.combinedDelivery) {
+      console.log(`Successfully delivered combined notification to ${email} via both email and SMS`);
+    } else if (results.partialDelivery) {
+      const successChannels = Object.entries(results.results)
+        .filter(([_, result]) => result.success)
+        .map(([channel]) => channel);
+      console.log(`Partial delivery of notification to ${email}: ${successChannels.join(', ')} succeeded`);
+    }
+  }
+  
   // Indicate if preferences were overridden
   if (options.forceSend) {
     results.preferencesOverridden = true;
@@ -990,6 +1115,8 @@ const sendNotificationByPreference = async (email, notificationType, data = {}, 
  * @param {boolean} [options.parallelSend=true] - If true, sends notifications in parallel
  * @param {boolean} [options.validateTemplatesFirst=true] - If true, validates templates before processing
  * @param {boolean} [options.forceSend=false] - If true, sends notifications regardless of user opt-in preferences
+ * @param {boolean} [options.combinedOnly=false] - If true, sends to both email and SMS only if both are viable
+ * @param {boolean} [options.requireAllChannels=false] - If true, fails if any requested channel can't be sent
  * @returns {Promise<Object>} Detailed results of the batch operation
  */
 const sendBatchNotifications = async (emails, notificationType, data = {}, options = {}) => {
@@ -1022,6 +1149,8 @@ const sendBatchNotifications = async (emails, notificationType, data = {}, optio
     parallelSend = true,
     validateTemplatesFirst = true,
     forceSend = false,
+    combinedOnly = false,
+    requireAllChannels = false,
     ...notificationOptions 
   } = options;
 
@@ -1029,6 +1158,18 @@ const sendBatchNotifications = async (emails, notificationType, data = {}, optio
   if (forceSend) {
     notificationOptions.forceSend = true;
     console.log(`forceSend option is enabled - user preferences will be overridden for this batch`);
+  }
+  
+  // Handle combined notification options
+  if (combinedOnly || requireAllChannels) {
+    notificationOptions.combinedOnly = combinedOnly;
+    notificationOptions.requireAllChannels = requireAllChannels;
+    
+    const modeDesc = requireAllChannels 
+      ? "requiring all channels to succeed" 
+      : "preferring combined but allowing fallback to single channel";
+      
+    console.log(`Combined notification mode enabled (${modeDesc})`);
   }
 
   // Pre-validate templates if requested
@@ -1059,10 +1200,72 @@ const sendBatchNotifications = async (emails, notificationType, data = {}, optio
       
       // Check if SMS template exists in English (our fallback language)
       const smsTemplate = getTemplate('sms', notificationType, 'en');
+      
+      // Log SMS template status
       if (!smsTemplate) {
         console.log(`SMS template not found for type '${notificationType}' in English - SMS notifications will require specific language match`);
+        
+        // If requireAllChannels is true and SMS template is missing, fail early
+        if (requireAllChannels) {
+          console.log(`Cannot proceed with batch notification: requireAllChannels=true but SMS template is missing for '${notificationType}'`);
+          return {
+            success: false,
+            error: `SMS template not found for type '${notificationType}' (required by requireAllChannels option)`,
+            processedCount: 0,
+            statusCounts: { success: 0, skipped: 0, failed: emails.length },
+            combinedModeRequested: true,
+            requireAllChannels: true,
+            missingTemplates: ['sms'],
+            results: emails.map(email => ({
+              email,
+              status: 'failed',
+              success: false,
+              error: `SMS template required but not available for type '${notificationType}'`,
+              channels: []
+            }))
+          };
+        }
       } else {
         console.log(`Found English SMS template for '${notificationType}' (will be used as fallback if needed)`);
+      }
+      
+      // If combinedOnly is true, check if both templates are available
+      if (combinedOnly && (!emailTemplate || !smsTemplate)) {
+        console.log(`Combined notification requested but templates not available for all channels`);
+        
+        // Determine which templates are missing
+        const missingTemplates = [];
+        if (!emailTemplate) missingTemplates.push('email');
+        if (!smsTemplate) missingTemplates.push('sms');
+        
+        // Check if we can proceed with available templates
+        if (requireAllChannels) {
+          console.log(`Cannot proceed with batch notification: requireAllChannels=true but templates missing for ${missingTemplates.join(', ')}`);
+          return {
+            success: false,
+            error: `Templates missing for required channels: ${missingTemplates.join(', ')}`,
+            processedCount: 0,
+            statusCounts: { success: 0, skipped: 0, failed: emails.length },
+            combinedModeRequested: true,
+            requireAllChannels: true,
+            missingTemplates,
+            results: emails.map(email => ({
+              email,
+              status: 'failed',
+              success: false,
+              error: `Templates missing for required channels: ${missingTemplates.join(', ')}`,
+              channels: []
+            }))
+          };
+        } else {
+          // We can continue with the available template(s)
+          console.log(`Will proceed with available templates (combined mode requested but fallback to single channel allowed)`);
+        }
+      }
+      
+      // If both templates exist and combinedOnly is true, log success
+      if (emailTemplate && smsTemplate && (combinedOnly || requireAllChannels)) {
+        console.log(`Pre-validation successful: templates available for combined (email+SMS) notification`);
       }
     } catch (error) {
       console.log(`Error during template pre-validation: ${error.message}`, error);
@@ -1337,6 +1540,31 @@ const sendBatchNotifications = async (emails, notificationType, data = {}, optio
     );
   }
   
+  // Calculate combined notification statistics
+  let combinedSuccessCount = 0;
+  let partialSuccessCount = 0;
+  
+  if (combinedOnly || requireAllChannels) {
+    const combinedResults = results.filter(r => r.combinedDelivery === true);
+    const partialResults = results.filter(r => r.partialDelivery === true);
+    
+    combinedSuccessCount = combinedResults.length;
+    partialSuccessCount = partialResults.length;
+    
+    // Log combined notification summary
+    if (combinedSuccessCount > 0) {
+      console.log(`${combinedSuccessCount} notifications delivered through both email and SMS`);
+    }
+    
+    if (partialSuccessCount > 0) {
+      console.log(`${partialSuccessCount} notifications delivered through only one channel (partial delivery)`);
+    }
+    
+    if (combinedOnly && partialSuccessCount > 0) {
+      console.log(`${partialSuccessCount} notifications were delivered through only one channel despite combinedOnly option`);
+    }
+  }
+  
   return {
     success: statusCounts.success > 0,
     processedCount: statusCounts.success + statusCounts.skipped + statusCounts.failed,
@@ -1345,6 +1573,10 @@ const sendBatchNotifications = async (emails, notificationType, data = {}, optio
     forceSendEnabled: forceSend,
     languageFallbackCount,
     languageFallbackUsed: languageFallbackCount > 0,
+    combinedMode: combinedOnly || requireAllChannels,
+    requireAllChannels,
+    combinedNotificationCount: combinedSuccessCount,
+    partialDeliveryCount: partialSuccessCount,
     results
   };
 };
