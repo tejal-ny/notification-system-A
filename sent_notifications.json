@@ -19,5 +19,13 @@
     "message": "Welcome message",
     "timestamp": "2025-06-03T21:30:00Z",
     "status": "sent"
+  },
+  {
+    "notificationId": 1749037809074,
+    "userId": "user123",
+    "channel": "email",
+    "message": "Welcome message",
+    "status": "sent",
+    "timestamp": "2025-06-04T11:50:09.074Z"
   }
 ]
