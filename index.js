@@ -81,9 +81,10 @@ async function sendExampleNotifications() {
 // If this file is run directly, start the notification service
 if (require.main === module) {
   const result = trackNotification({
-    userId: 'example-user',
-    channel: 'email',
-    message: 'This is a test notification',
-    timestamp: new Date().toISOString()
+    notificationId: 1717636799123,
+    userId: "user123",
+    channel: "email",
+    message: "Welcome message",
+    timestamp: "2025-06-03T21:30:00Z"
   });
 }

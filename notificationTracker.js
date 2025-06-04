@@ -16,6 +16,7 @@ const NOTIFICATION_FILE = 'sent_notifications.json';
  * 
  * This function logs notification data to the console and writes it to a file.
  * If the file doesn't exist, it creates it with an initial empty array.
+ * Each notification is assigned a unique notificationId based on the current timestamp.
  * 
  * @param {Object} notificationData - The notification data to track
  * @param {string} notificationData.userId - The ID of the user receiving the notification
@@ -25,28 +26,40 @@ const NOTIFICATION_FILE = 'sent_notifications.json';
  * @returns {void}
  */
 function trackNotification({ userId, channel, message, timestamp }) {
-  // Log to console for debugging
-  console.log({ userId, channel, message, timestamp });
-  
-  // Store the notification in the file
-  try {
-    let notifications = [];
+    // Generate a unique notification ID using current timestamp
+    const notificationId = Date.now();
     
-    // Check if file exists
-    if (fs.existsSync(NOTIFICATION_FILE)) {
-      // Read existing notifications
-      const fileContent = fs.readFileSync(NOTIFICATION_FILE, 'utf8');
-      notifications = JSON.parse(fileContent);
+    // Create the complete notification object with ID
+    const notification = {
+      notificationId,
+      userId,
+      channel,
+      message,
+      timestamp
+    };
+    
+    // Log to console for debugging
+    console.log(notification);
+    
+    // Store the notification in the file
+    try {
+      let notifications = [];
+      
+      // Check if file exists
+      if (fs.existsSync(NOTIFICATION_FILE)) {
+        // Read existing notifications
+        const fileContent = fs.readFileSync(NOTIFICATION_FILE, 'utf8');
+        notifications = JSON.parse(fileContent);
+      }
+      
+      // Add new notification
+      notifications.push(notification);
+      
+      // Write back to file
+      fs.writeFileSync(NOTIFICATION_FILE, JSON.stringify(notifications, null, 2), 'utf8');
+    } catch (error) {
+      console.error('Error storing notification:', error);
     }
-    
-    // Add new notification
-    notifications.push({ userId, channel, message, timestamp });
-    
-    // Write back to file
-    fs.writeFileSync(NOTIFICATION_FILE, JSON.stringify(notifications, null, 2), 'utf8');
-  } catch (error) {
-    console.error('Error storing notification:', error);
   }
-}
 
 module.exports = { trackNotification };
